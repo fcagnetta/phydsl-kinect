@@ -1,0 +1,1955 @@
+[comment encoding = UTF-8 /]
+[module generate('http://www.edu.ualberta/cs/ssrg/phy/Phydsl')]
+[template public generate(m : Model)]
+[comment @main/]
+[file ('MainScript.cs', false, 'UTF-8')]
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+public class MainScript : MonoBehaviour {
+
+    //GUI-----------------------------------------------------------------------
+    private GameObject canvasObject;
+    private GameObject eventSystemObject;
+
+    private GameObject startGUIObject;
+    private GameObject startButtonObject;
+
+    private GameObject endGUIObject;
+    private GameObject finalScoreObject;
+    private GameObject restartButtonObject;
+    private GameObject saveMetricsButtonObject;
+    private GameObject quitButtonObject;
+
+    private GameObject timeBoardObject;
+    private GameObject scoreBoardObject;
+    private GameObject timeTextObject;
+    private GameObject scoreTextObject;
+
+    //KINECT--------------------------------------------------------------------
+    //NEW
+    private KinectManager kinectManager;
+    private GestureListener gestureListener;
+    private BodySourceView bodySourceView;
+
+    public GameObject bodyObject;
+    public GameObject handLeftObject;
+    public GameObject handRightObject;
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+
+    private Vector2 handLeftLastVelocity;
+    private Vector2 handRightLastVelocity;
+
+    private Vector2 handLeftCurrentPosition;
+    private Vector2 handRightCurrentPosition;
+
+    private Vector2 handLeftLastPosition;
+    private Vector2 handRightLastPosition;
+[/if]
+
+    private long userId;
+    private Collider2D['['/][']'/] handLeftOverlappingColliders;
+    private Collider2D['['/][']'/] handRightOverlappingColliders;
+
+    private ContactFilter2D contactFilter2D;
+
+    public float leftShoulderToHandLenght;
+    public float rightShoulderToHandLenght;
+    //END KINECT ---------------------------------------------------------------
+
+    //ACTORS--------------------------------------------------------------------
+    private GameObject actorsObject;
+[for (actor : Actor  | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+
+    //Main Actor -- one GameObject model for the main actor declared in the .phy file
+	private GameObject [actor.name/];
+
+    private float [actor.name/]Height;
+    private float [actor.name/]Width;
+    private float [actor.name/]XMinBound;
+    private float [actor.name/]XMaxBound;
+    private float [actor.name/]YMinBound;
+    private float [actor.name/]YMaxBound;
+	[/if]
+[/for]
+
+    //Actors -- These will be models (a kind of custom prefab), one for every actor decalred in the .phy file
+[for (actor : Actor | game.actorSection.actors)]
+	[if(not(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor')))]
+	private GameObject [actor.name/];
+	[/if]
+[/for]
+
+    //Environment--------------------------------------------------------------
+    private GameObject environmentObject;
+    private GameObject backgroundObject;
+    private GameObject myCamera;
+    private float camSizeX;
+    private float camSizeY;
+
+    private GameObject bordersObject;
+    private GameObject leftBorder;
+    private GameObject upperBorder;
+    private GameObject rightBorder;
+    private GameObject lowerBorder;
+    
+    //AudioClips to be generated for every sound feedback in the .phy file
+[for (rule : ScoreRule | game.socoringSection.scoreRules)]
+	[if (rule.effect.sound <> null)]
+	private AudioClip [rule.name/]; 
+	[/if]
+[/for]
+
+    //Timer for every time-based activity in the .phy file
+[for (activity : Activity | game.activitySection.activities)]
+	[if (activity.activityDefinition.frequency <> null)]
+	private float [activity.activityID/]Timer; 
+	[/if]
+[/for]
+
+    //A float value for every time-based scoring rule.
+[for (rule : ScoreRule | game.socoringSection.scoreRules)]
+	[if (rule.oclIsTypeOf(TimeRule))]
+	private float [rule.name/]Timer; 
+	[/if]
+[/for]
+
+    //Game 
+    private float time;
+    private int score;
+    private float xMinBound, xMaxBound, yMinBound, yMaxBound;
+    private bool gameOver;
+    private bool gameStarted;
+    private float fireRate;
+	private float fireTimer;
+    private bool canFire;
+
+[if (game.environmentSection.environment.camera->first().toString().equalsIgnoreCase('continuous'))]
+    //Event Forwarder for Continuous camera defined in .phy file.
+	private EventForwarder myCameraEventForwarder;
+[/if]
+
+    //Event Forwarders
+	//One for the main actor of the game
+	//One for main actors of scoring rules in the .phy file
+    //One Event forwarder for actors that are located just one time and are protagonist of a scoring rule
+    //A dictionary of <EventForwarder, GameObjects> for actors located more than one time
+    //A dictionary even for actors that are or will be located multiple times and are protagonist of a scoring rule
+
+[for (actor : Actor | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+	private EventForwarder [actor.name/]EventForwarder;
+	[/if]
+[/for]
+[for (actor : Actor | game.actorSection.actors->select(a : Actor | not(a.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) = 1))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+	private EventForwarder [actor.name/]EventForwarder;
+		[/if]
+	[/if]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) > 1)
+		or (m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) > 0))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+	private Dictionary<EventForwarder, GameObject> [actor.name/]sEventForwarder;
+		[/if]
+	[/if]
+	[if(m.game.controlSection.controls.projectile->count(actor) > 0)]
+	private Dictionary<EventForwarder, GameObject> [actor.name/]sEventForwarder;
+	[/if]
+[/for]
+
+	private EventForwarder handLeftEventForwarder;
+    private EventForwarder handRightEventForwarder;
+    private bool handsEventForwardersCreated;
+
+    // Use this for initialization
+    private void Awake()
+    {
+        InitEnvironment();
+        InitActors();
+        InitGUI();
+        InitResources();
+    }
+
+    private void Update()
+    {
+        CheckTPose();
+        ManageGUI();
+        ManageActivities();
+[for (actor : Actor | game.actorSection.actors->select(a : Actor | not(a.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) > 0))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+		Set[actor.name.toUpperFirst()/]sEventForwarder();
+		[/if]
+	[/if]
+	[if(m.game.controlSection.controls.projectile->count(actor) > 0)]
+		Set[actor.name.toUpperFirst()/]sEventForwarder();
+	[/if]
+[/for]
+
+        if (!bodySourceView.bodyCreated)
+        {
+            handsEventForwardersCreated = false;
+        }
+
+        if (bodySourceView.bodyCreated && !handsEventForwardersCreated )
+        {
+            foreach (Transform child in myCamera.transform)
+            {
+                if (child.gameObject.name.Contains("Body:"))
+                {
+                    userId = System.Convert.ToInt64(child.gameObject.name.Replace("Body:", ""));
+                }
+            }
+
+            SetHandLeftEventForwarder();
+            SetHandRightEventForwarder();
+            handsEventForwardersCreated = true;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (!gameOver && gameStarted)
+        {
+            time += Time.deltaTime;
+
+			if (Time.time > fireTimer)
+            {
+                fireTimer = Time.time + fireRate;
+                canFire = true;
+            }
+            else
+            {
+                canFire = false;
+            }
+
+            //remove time from timer of time-based rules
+[for (rule : ScoreRule | game.socoringSection.scoreRules)]
+	[if (rule.oclIsTypeOf(TimeRule))]
+            if([rule.name/]Timer > 0)
+            {
+                [rule.name/]Timer -= Time.deltaTime;
+            }
+	[/if]
+[/for]
+
+            //add time to the timers of appear activities
+[for (activity : Activity | game.activitySection.activities)]
+	[if (activity.activityDefinition.frequency <> null)]
+			[activity.activityID/]Timer += Time.deltaTime;
+	[/if]
+[/for]
+
+[for (rule : ScoreRule | game.socoringSection.scoreRules)]
+	[if (rule.oclIsTypeOf(TimeRule))]
+		[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+			ScoringRulesManager.CheckAndApplyRule(ref [rule.name/]Timer, ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+		[/if]
+		[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+			ScoringRulesManager.CheckAndApplyRule(ref [rule.name/]Timer, ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.effect.disappears.name/]);
+		[/if]
+		[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+			ScoringRulesManager.CheckAndApplyRule(ref [rule.name/]Timer, ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], [for(actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for].transform.position);
+		[/if]
+		[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+			ScoringRulesManager.CheckAndApplyRule(ref [rule.name/]Timer, ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.effect.disappears.name/], [rule.name/], [for(actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for].transform.position);
+		[/if]
+	[/if]
+[/for]
+        }
+
+        if(gameOver && gameStarted)
+        {
+            var objects = Resources.FindObjectsOfTypeAll<GameObject>().Where(obj => obj.name == "Temp Audio" || obj.name == "Actors");
+            foreach(var obj in objects)
+            {
+                Destroy(obj);
+            }
+        }
+    }
+
+    private void InitActors()
+    {
+        ActorsManager.InitActors(out actorsObject);
+
+[for(actor : Actor  | m.game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+        //this will be called for the first main actor defined in the .phy file
+		ActorsManager.DesignMainActor(out [actor.name/], "[actor.name/]", "[actor.actorDefinition->first().imageFile.value/]", [actor.actorDefinition->first().density.value/]f, [actor.actorDefinition->first().elasticity.value/]f, [actor.actorDefinition->first().friction.value/]f, [if(actor.actorDefinition->first().mobility.toString().equalsIgnoreCase('dynamic'))]false[elseif (actor.actorDefinition->first().mobility.toString().equalsIgnoreCase('static'))]true[/if]);
+	[/if]
+[/for]
+
+        //this will be called for every actor defined in the .phy file
+[for (actor : Actor | game.actorSection.actors)]
+	[if(not(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor')))]
+		ActorsManager.DesignActor(out [actor.name/], "[actor.name/]", "[actor.actorDefinition->first().imageFile.value/]", [actor.actorDefinition->first().density.value/]f, [actor.actorDefinition->first().elasticity.value/]f, [actor.actorDefinition->first().friction.value/]f, [if(actor.actorDefinition->first().shape.toString().equalsIgnoreCase('square'))]true[elseif (actor.actorDefinition->first().shape.toString().equalsIgnoreCase('circle'))]false[/if], [if(actor.actorDefinition->first().mobility.toString().equalsIgnoreCase('dynamic'))]false[elseif (actor.actorDefinition->first().mobility.toString().equalsIgnoreCase('static'))]true[/if], [if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('abstract'))]true[elseif (actor.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))]false[/if]);
+	[/if]
+[/for]
+    }
+
+    private void InitLayout()
+    {
+[for (location : Location | game.layoutSection.locations->select(l : Location | not (l.element.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+		LayoutManager.LocateActor(actorsObject, ref [location.element.name/], new Vector3([location.coordinate.x/]f, [location.coordinate.y/]f));
+[/for]
+    }
+
+    private void InitEnvironment()
+    {
+        EnvironmentManager.InitEnvironment(out environmentObject);
+
+        //DSL has just a scalar value for Y, we will use a Vector2 with 0 for the X.
+        EnvironmentManager.SetGravity(new Vector2(0.0f, -[game.environmentSection.environment->first().gravity.value/]f));
+
+        //Set the background
+        EnvironmentManager.SetBackground(environmentObject, out backgroundObject, new String[ '[' /][ ']' /]
+        {
+[for (Sequence{1..game.environmentSection.environment->first().segments})]
+					"[m.game.environmentSection.environment->first().backgroundFile.value/][i/]"[if i < m.game.environmentSection.environment->first().segments],[/if]
+[/for]
+		});
+
+        //Set the camera
+        EnvironmentManager.SetCamera(out myCamera);
+
+        //init borders
+        EnvironmentManager.InitBordersObject(environmentObject, out bordersObject);
+
+        //set world boundaries
+        ResourceManager.SetBoundaries(backgroundObject, out xMinBound, out xMaxBound, out yMinBound, out yMaxBound);
+
+        //set borders
+        EnvironmentManager.InitBorders(bordersObject, new GameObject[ '[' /][ ']' /] { leftBorder, upperBorder, rightBorder, lowerBorder },
+            xMinBound, xMaxBound, yMinBound, yMaxBound);
+    }
+
+    private void InitGUI()
+    {
+        GuiManager.InitCanvas(out canvasObject);
+        GuiManager.InitEventSystem(out eventSystemObject);
+
+        GuiManager.InitStartGUI(canvasObject, out startGUIObject, out startButtonObject);
+        GuiManager.InitEndGUI(canvasObject, out endGUIObject, scoreTextObject, out finalScoreObject, out restartButtonObject,
+            out saveMetricsButtonObject, out quitButtonObject);
+
+        GuiManager.InitTimeBoard(canvasObject, out timeBoardObject, out timeTextObject);
+        GuiManager.InitScoreBoard(canvasObject, out scoreBoardObject, out scoreTextObject);
+
+        GuiManager.SetButtonListener(ref startButtonObject, SetTPoseGUI);
+        GuiManager.SetButtonListener(ref restartButtonObject, RestartGame);
+        GuiManager.SetButtonListener(ref quitButtonObject, QuitGame);
+    }
+
+    private void InitResources()
+    {
+        //Kinect resources
+        gestureListener = gameObject.GetComponent<GestureListener>();
+        kinectManager = gameObject.GetComponent<KinectManager>();
+        bodySourceView = gameObject.GetComponent<BodySourceView>();
+
+        handLeftOverlappingColliders = new Collider2D['['/]20[']'/];
+        handRightOverlappingColliders = new Collider2D['['/]20[']'/];
+        contactFilter2D = new ContactFilter2D();
+        contactFilter2D.useTriggers = true;
+
+        handsEventForwardersCreated = false;
+        //End kinect resources
+
+        //Game Resources
+        gameOver = false;
+        gameStarted = false;
+        time = 0;
+        score = 0;
+        fireRate = 0.33f;
+		fireTimer = 0.0f;
+		canFire = true;
+
+
+		//Set the timer for time-based scoring rules
+[for (rule : TimeRule | game.socoringSection.scoreRules->selectByType(TimeRule))]
+		[rule.name/]Timer = [rule.oclAsType(TimeRule).time/];
+[/for]
+
+        //Load audio clip for every scoring rule
+[for (rule : ScoreRule | game.socoringSection.scoreRules)]
+	[if (rule.effect.sound <> null)]
+		ResourceManager.Load(out [rule.name/], "[rule.effect.sound.value/]");
+	[/if]
+[/for]
+
+        //Initialize dictionaries
+[for (actor : Actor | game.actorSection.actors->select(a : Actor | not(a.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) > 1)
+		or (m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) > 0))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+		[actor.name/]sEventForwarder = new Dictionary<EventForwarder, GameObject>(0);
+		[/if]
+	[/if]
+	[if(m.game.controlSection.controls.projectile->count(actor) > 0)]
+		[actor.name/]sEventForwarder = new Dictionary<EventForwarder, GameObject>(0);
+	[/if]
+[/for]
+
+        //Set activities frequency timers
+[for (activity : Activity | game.activitySection.activities)]
+		[activity.activityID/]Timer = 0;
+[/for]
+
+[for (actor : Actor  | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+        //main actor Resources
+		ResourceManager.GetHeight([actor.name/], out [actor.name/]Height);
+		ResourceManager.GetWidth([actor.name/], out [actor.name/]Width);
+
+		[actor.name/]XMinBound = xMinBound + [actor.name/]Width / 2;
+		[actor.name/]XMaxBound = xMaxBound - [actor.name/]Width / 2;
+		[actor.name/]YMinBound = yMinBound + [actor.name/]Height / 2;
+		[actor.name/]YMaxBound = yMaxBound - [actor.name/]Height / 2;
+	[/if]
+[/for]
+    }
+
+[if (game.environmentSection.environment.camera->first().toString().equalsIgnoreCase('continuous'))]
+    private void SetCameraEventForwarder()
+    {
+        EventForwarderManager.AddEventForwarder(out myCameraEventForwarder, myCamera);
+
+        myCameraEventForwarder.FixedUpdateEvent += MyCameraEventForwarder_FixedUpdateEvent;
+    }
+
+	[for (actor : Actor  | game.actorSection.actors)]
+		[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+    private void MyCameraEventForwarder_FixedUpdateEvent(EventForwarder thiz)
+    {
+        if (GameObject.Find("[actor.name/]") && !gameOver && gameStarted)
+        {
+            //Camera size x/y
+            camSizeY = myCamera.GetComponent<Camera>().orthographicSize;
+            camSizeX = camSizeY * myCamera.GetComponent<Camera>().aspect;
+
+            Vector3 velocity = Vector3.zero;
+            Vector3 point = thiz.gameObject.GetComponent<Camera>().WorldToViewportPoint(GameObject.Find("[actor.name/]").transform.position);
+            Vector3 delta = GameObject.Find("[actor.name/]").transform.position -
+                    thiz.gameObject.GetComponent<Camera>().ViewportToWorldPoint(new Vector3(0.5f, 0.5f, point.z));
+            Vector3 destination = thiz.gameObject.transform.position + delta;
+
+            Vector3 pos = destination;
+            pos.x = Mathf.Clamp(destination.x, xMinBound + camSizeX, xMaxBound - camSizeX);
+            pos.y = Mathf.Clamp(destination.y, yMinBound + camSizeY, yMaxBound - camSizeY);
+            destination = new Vector3(pos.x, pos.y, destination.z);
+
+            pos = thiz.gameObject.transform.position;
+            pos.x = Mathf.Clamp(thiz.gameObject.transform.position.x, xMinBound + camSizeX, xMaxBound - camSizeX);
+            pos.y = Mathf.Clamp(thiz.gameObject.transform.position.y, yMinBound + camSizeY, yMaxBound - camSizeY);
+            thiz.gameObject.transform.position = new Vector3(pos.x, pos.y, thiz.gameObject.transform.position.z);
+
+            thiz.gameObject.transform.position = Vector3.SmoothDamp(thiz.gameObject.transform.position, destination, ref velocity, 0.05f);
+        }
+    }
+		[/if]
+	[/for]
+[/if]
+
+[for (actor : Actor  | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+	private void Set[actor.name.toUpperFirst()/]EventForwarder()
+	{
+		EventForwarderManager.AddEventForwarder(out [actor.name/]EventForwarder, GameObject.Find("[actor.name/]"));
+
+		[actor.name/]EventForwarder.UpdateEvent -= [actor.name.toUpperFirst()/]EventForwarder_UpdateEvent;
+		[actor.name/]EventForwarder.UpdateEvent += [actor.name.toUpperFirst()/]EventForwarder_UpdateEvent;
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor and cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))->size() > 0))]
+		
+		[actor.name/]EventForwarder.OnCollisionEnter2DEvent -= [actor.name.toUpperFirst()/]EventForwarder_OnCollisionEnter2DEvent;
+		[actor.name/]EventForwarder.OnCollisionEnter2DEvent += [actor.name.toUpperFirst()/]EventForwarder_OnCollisionEnter2DEvent;
+		[/if]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor and cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract'))->size() > 0))]
+		
+		[actor.name/]EventForwarder.OnTriggerEnter2DEvent -= [actor.name.toUpperFirst()/]EventForwarder_OnTriggerEnter2DEvent;
+		[actor.name/]EventForwarder.OnTriggerEnter2DEvent += [actor.name.toUpperFirst()/]EventForwarder_OnTriggerEnter2DEvent;
+		[/if]
+	}
+
+	private void [actor.name.toUpperFirst()/]EventForwarder_UpdateEvent(EventForwarder thiz)
+	{
+		if (!gameOver && gameStarted)
+		{
+            ManageKinectControls();
+			ActorsManager.KeepWithinBoundaries(thiz.gameObject, [actor.name/]XMinBound, [actor.name/]XMaxBound, [actor.name/]YMinBound, [actor.name/]YMaxBound);
+		}
+	}
+
+	private void [actor.name.toUpperFirst()/]EventForwarder_OnCollisionEnter2DEvent(EventForwarder thiz, Collision2D collision)
+	{
+	    if (!gameOver && gameStarted)
+	    {
+		[for (rule : ScoreRule | m.game.socoringSection.scoreRules)]
+			[if (rule.oclIsTypeOf(CollisionRule))]
+				[if ((rule.oclAsType(CollisionRule).elementA.name = actor.name) and (rule.oclAsType(CollisionRule).elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete')))]
+			if(collision.gameObject.name == "[rule.oclAsType(CollisionRule).elementB.name/]")
+	        {
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collision.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collision.gameObject, [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+			}
+				[/if]
+			[/if]
+		[/for]
+		}
+	}
+
+	private void [actor.name.toUpperFirst()/]EventForwarder_OnTriggerEnter2DEvent(EventForwarder thiz, Collider2D other)
+	{
+		if(!gameOver && gameStarted)
+		{
+		[for (rule : ScoreRule | m.game.socoringSection.scoreRules)]
+			[if (rule.oclIsTypeOf(CollisionRule))]
+				[if ((rule.oclAsType(CollisionRule).elementA.name = actor.name) and (rule.oclAsType(CollisionRule).elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract')))]
+			if (other.gameObject.name == "[rule.oclAsType(CollisionRule).elementB.name/]")
+			{
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], other.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], other.gameObject, [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+			}
+				[/if]
+			[/if]
+		[/for]
+		}
+	}
+	[/if]
+[/for]
+[for (actor : Actor | game.actorSection.actors->select(a : Actor | not(a.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) = 1))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+
+private void Set[actor.name.toUpperFirst()/]EventForwarder()
+	{
+		EventForwarderManager.AddEventForwarder(out [actor.name/]EventForwarder, GameObject.Find("[actor.name/]"));
+			[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))->size() > 0)]
+		
+		[actor.name/]EventForwarder.OnCollisionEnter2DEvent -= [actor.name.toUpperFirst()/]EventForwarder_OnCollisionEnter2DEvent;
+		[actor.name/]EventForwarder.OnCollisionEnter2DEvent += [actor.name.toUpperFirst()/]EventForwarder_OnCollisionEnter2DEvent;
+			[/if]
+			[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract'))->size() > 0)]
+		
+		[actor.name/]EventForwarder.OnTriggerEnter2DEvent -= [actor.name.toUpperFirst()/]EventForwarder_OnTriggerEnter2DEvent;
+		[actor.name/]EventForwarder.OnTriggerEnter2DEvent += [actor.name.toUpperFirst()/]EventForwarder_OnTriggerEnter2DEvent;
+			[/if]
+	}
+		[/if]
+	[/if]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) > 1)
+		or (m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) > 0))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+
+	private void Set[actor.name.toUpperFirst()/]sEventForwarder()
+	{
+		GameObject['['/][']'/] [actor.name/]s = FindObjectsOfType(typeof(GameObject)).Select(go => go as GameObject).Where(go => go.name == "[actor.name/]").ToArray();
+		EventForwarderManager.AddEventForwarders(ref [actor.name/]sEventForwarder, [actor.name/]s);
+	        
+		foreach (KeyValuePair<EventForwarder, GameObject> entry in [actor.name/]sEventForwarder)
+		{
+			[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))->size() > 0)]
+			entry.Key.OnCollisionEnter2DEvent -= [actor.name.toUpperFirst()/]sEventForwarder_OnCollisionEnter2DEvent;			
+			entry.Key.OnCollisionEnter2DEvent += [actor.name.toUpperFirst()/]sEventForwarder_OnCollisionEnter2DEvent;
+			[/if]
+			[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract'))->size() > 0)]
+			entry.Key.OnTriggerEnter2DEvent -= [actor.name.toUpperFirst()/]sEventForwarder_OnTriggerEnter2DEvent;
+			entry.Key.OnTriggerEnter2DEvent += [actor.name.toUpperFirst()/]sEventForwarder_OnTriggerEnter2DEvent;						
+			[/if]
+		}
+	}
+		[/if]
+	[/if]
+	[if(m.game.controlSection.controls.projectile->count(actor) > 0)]
+
+	private void Set[actor.name.toUpperFirst()/]sEventForwarder()
+	{
+		GameObject['['/][']'/] [actor.name/]s = FindObjectsOfType(typeof(GameObject)).Select(go => go as GameObject).Where(go => go.name == "[actor.name/]").ToArray();
+		EventForwarderManager.AddEventForwarders(ref [actor.name/]sEventForwarder, [actor.name/]s);
+	        
+		foreach (KeyValuePair<EventForwarder, GameObject> entry in [actor.name/]sEventForwarder)
+		{
+			[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))->size() > 0)]
+			entry.Key.OnCollisionEnter2DEvent -= [actor.name.toUpperFirst()/]sEventForwarder_OnCollisionEnter2DEvent;			
+			entry.Key.OnCollisionEnter2DEvent += [actor.name.toUpperFirst()/]sEventForwarder_OnCollisionEnter2DEvent;
+			[/if]
+		}
+	}
+	[/if]
+[/for]
+[for (actor : Actor | game.actorSection.actors->select(a : Actor | not(a.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) = 1))]
+		[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))->size() > 0)]
+
+	private void [actor.name.toUpperFirst()/]EventForwarder_OnCollisionEnter2DEvent(EventForwarder thiz, Collision2D collision)
+	{
+	    if (!gameOver && gameStarted)
+	    {
+			[for (rule : ScoreRule | m.game.socoringSection.scoreRules->select(r : ScoreRule | r.oclIsTypeOf(CollisionRule)))]
+				[if ((rule.oclAsType(CollisionRule).elementA = actor) and (rule.oclAsType(CollisionRule).elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete')))]
+			if(collision.gameObject.name == "[rule.oclAsType(CollisionRule).elementB.name/]")
+	        {
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collision.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collision.gameObject, [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+			}
+				[/if]
+			[/for]
+		}
+	}
+		[/if]
+		[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract'))->size() > 0)]
+
+	private void [actor.name.toUpperFirst()/]EventForwarder_OnTriggerEnter2DEvent(EventForwarder thiz, Collider2D other)
+	{
+		if(!gameOver && gameStarted)
+		{
+			[for (rule : ScoreRule | m.game.socoringSection.scoreRules->select(r : ScoreRule | r.oclIsTypeOf(CollisionRule)))]
+				[if ((rule.oclAsType(CollisionRule).elementA = actor) and (rule.oclAsType(CollisionRule).elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract')))]
+			if (other.gameObject.name == "[rule.oclAsType(CollisionRule).elementB.name/]")
+			{
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], other.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], other.gameObject, [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+			}
+				[/if]
+			[/for]
+		}
+	}
+		[/if]
+	[/if]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) > 0) or (m.game.layoutSection.locations.element->count(actor) > 1) or (m.game.controlSection.controls.projectile->count(actor) > 0))]
+		[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete'))->size() > 0)]
+
+	private void [actor.name.toUpperFirst()/]sEventForwarder_OnCollisionEnter2DEvent(EventForwarder thiz, Collision2D collision)
+	{
+	    if (!gameOver && gameStarted)
+	    {
+			[for (rule : ScoreRule | m.game.socoringSection.scoreRules->select(r : ScoreRule | r.oclIsTypeOf(CollisionRule)))]
+				[if ((rule.oclAsType(CollisionRule).elementA = actor) and (rule.oclAsType(CollisionRule).elementB.actorDefinition->first().type.toString().equalsIgnoreCase('concrete')))]
+			if(collision.gameObject.name == "[rule.oclAsType(CollisionRule).elementB.name/]")
+	        {
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collision.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collision.gameObject, [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+			}
+				[/if]
+			[/for]
+			[if(m.game.controlSection.controls.projectile->count(actor) > 0)]
+
+            Destroy(thiz.gameObject);
+			[/if]
+		}
+	}
+		[/if]
+		[if (m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->select(cr : CollisionRule | cr.elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract'))->size() > 0)]
+
+	private void [actor.name.toUpperFirst()/]sEventForwarder_OnTriggerEnter2DEvent(EventForwarder thiz, Collider2D other)
+	{
+		if(!gameOver && gameStarted)
+		{
+			[for (rule : ScoreRule | m.game.socoringSection.scoreRules->select(r : ScoreRule | r.oclIsTypeOf(CollisionRule)))]
+				[if ((rule.oclAsType(CollisionRule).elementA = actor) and (rule.oclAsType(CollisionRule).elementB.actorDefinition->first().type.toString().equalsIgnoreCase('abstract')))]
+			if(other.gameObject.name == "[rule.oclAsType(CollisionRule).elementB.name/]")
+	        {
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], other.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+				ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], other.gameObject, [rule.name/], thiz.gameObject.transform.position);
+					[/if]
+			}
+				[/if]
+			[/for]
+		}
+	}
+		[/if]
+	[/if]
+[/for]
+
+    public void SetHandLeftEventForwarder()
+    {
+        handLeftObject = GameObject.Find("HandLeft");
+        EventForwarderManager.AddEventForwarder(out handLeftEventForwarder, handLeftObject);
+        
+        handLeftEventForwarder.UpdateEvent -= HandLeftEventForwarder_UpdateEvent;
+        handLeftEventForwarder.UpdateEvent += HandLeftEventForwarder_UpdateEvent;
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+
+        handLeftEventForwarder.OnCollisionEnter2DEvent -= HandLeftEventForwarder_OnCollisionEnter2DEvent;
+        handLeftEventForwarder.OnCollisionEnter2DEvent += HandLeftEventForwarder_OnCollisionEnter2DEvent;
+[/if]
+    }
+
+    public void SetHandRightEventForwarder()
+    {
+        handRightObject = GameObject.Find("HandRight");
+        EventForwarderManager.AddEventForwarder(out handRightEventForwarder, handRightObject);
+
+        handRightEventForwarder.UpdateEvent -= HandRightEventForwarder_UpdateEvent;
+        handRightEventForwarder.UpdateEvent += HandRightEventForwarder_UpdateEvent;
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+
+        handRightEventForwarder.OnCollisionEnter2DEvent -= HandRightEventForwarder_OnCollisionEnter2DEvent;
+        handRightEventForwarder.OnCollisionEnter2DEvent += HandRightEventForwarder_OnCollisionEnter2DEvent;
+[/if]
+    }
+
+    private void HandLeftEventForwarder_UpdateEvent(EventForwarder thiz)
+    {
+        if (!gameOver && gameStarted)
+        {
+[if (m.game.controlSection.controls->select(ctrl : Control | ctrl.moves = null and ctrl.projectile <> null and ctrl.shoots <> null and ctrl.shoots.x < 0)->size() > 0)]
+			if (canFire && kinectManager.GetLeftHandState(userId) == KinectInterop.HandState.Lasso)
+            {
+	[for (control : Control | m.game.controlSection.controls->select(ctrl : Control | ctrl.moves = null and ctrl.projectile <> null and ctrl.shoots <> null and ctrl.shoots.x < 0))]
+				ControlsManager.Shoot(actorsObject, [control.projectile.name/], GameObject.Find("[for (actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for]"), new Vector2([control.shoots.x/]f, [control.shoots.y/]f));
+	[/for]
+			}
+
+[/if]
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('true'))]
+            if (kinectManager.GetLeftHandState(userId) == KinectInterop.HandState.Closed)
+            {
+                thiz.gameObject.GetComponent<CircleCollider2D>().OverlapCollider(contactFilter2D, handLeftOverlappingColliders);
+
+                if (handLeftOverlappingColliders['['/]0[']'/] != null)
+                {
+                    foreach (Collider2D collider in handLeftOverlappingColliders)
+                    {
+	[for (actor : Actor | game.actorSection.actors)]
+		[if (m.game.socoringSection.scoreRules->selectByKind(TouchRule)->select(tr : TouchRule | tr.elementTouched = actor)->size() > 0)]
+                        if (collider != null && collider.gameObject.name == "[actor.name/]")
+                        {
+			[for (rule : ScoreRule | m.game.socoringSection.scoreRules->select(r : ScoreRule | r.oclIsTypeOf(TouchRule)))]
+				[if (rule.oclAsType(TouchRule).elementTouched = actor)]
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collider.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], collider.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collider.gameObject, [rule.name/], collider.gameObject.transform.position);
+					[/if]
+				[/if]
+			[/for]
+                        }
+		[/if]
+	[/for]
+                    }
+                }
+            }
+[/if]
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+            handLeftCurrentPosition = new Vector2(thiz.gameObject.transform.position.x, thiz.gameObject.transform.position.y);
+            handLeftLastVelocity = (handLeftCurrentPosition - handLeftLastPosition) / Time.deltaTime;
+            handLeftLastPosition = handLeftCurrentPosition;
+[/if]
+        }
+    }
+
+    private void HandRightEventForwarder_UpdateEvent(EventForwarder thiz)
+    {
+        if (!gameOver && gameStarted)
+        {
+[if (m.game.controlSection.controls->select(ctrl : Control | ctrl.moves = null and ctrl.projectile <> null and ctrl.shoots <> null and ctrl.shoots.x > 0)->size() > 0)]
+			if (canFire && kinectManager.GetRightHandState(userId) == KinectInterop.HandState.Lasso)
+            {
+	[for (control : Control | m.game.controlSection.controls->select(ctrl : Control | ctrl.moves = null and ctrl.projectile <> null and ctrl.shoots <> null and ctrl.shoots.x > 0))]
+				ControlsManager.Shoot(actorsObject, [control.projectile.name/], GameObject.Find("[for (actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for]"), new Vector2([control.shoots.x/]f, [control.shoots.y/]f));
+	[/for]
+			}
+
+[/if]
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('true'))]
+            if (kinectManager.GetRightHandState(userId) == KinectInterop.HandState.Closed)
+            {
+                thiz.gameObject.GetComponent<CircleCollider2D>().OverlapCollider(contactFilter2D, handRightOverlappingColliders);
+
+                if (handRightOverlappingColliders['['/]0[']'/] != null)
+                {
+                    foreach (Collider2D collider in handRightOverlappingColliders)
+                    {
+	[for (actor : Actor | game.actorSection.actors)]
+		[if (m.game.socoringSection.scoreRules->selectByKind(TouchRule)->select(tr : TouchRule | tr.elementTouched = actor)->size() > 0)]
+                        if (collider != null && collider.gameObject.name == "[actor.name/]")
+                        {
+			[for (rule : ScoreRule | m.game.socoringSection.scoreRules->select(r : ScoreRule | r.oclIsTypeOf(TouchRule)))]
+				[if (rule.oclAsType(TouchRule).elementTouched = actor)]
+					[if ((rule.effect.disappears = null) and (rule.effect.sound = null))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/]);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (rule.effect.sound = null))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collider.gameObject);
+					[/if]
+					[if ((rule.effect.disappears = null) and (not(rule.effect.sound = null)))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], [rule.name/], collider.gameObject.transform.position);
+					[/if]
+					[if ((not(rule.effect.disappears = null)) and (not(rule.effect.sound = null)))]
+							ScoringRulesManager.ApplyRule(ref scoreTextObject, ref score, [rule.effect.points/], ref gameOver, [rule.effect.end/], [rule.effect.haptic/], collider.gameObject, [rule.name/], collider.gameObject.transform.position);
+					[/if]
+				[/if]
+			[/for]
+                        }
+		[/if]
+	[/for]
+                    }
+                }
+            }
+[/if]
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+            handRightCurrentPosition = new Vector2(thiz.gameObject.transform.position.x, thiz.gameObject.transform.position.y);
+            handRightLastVelocity = (handRightCurrentPosition - handRightLastPosition) / Time.deltaTime;
+        	handRightLastPosition = handRightCurrentPosition;
+[/if]
+        }
+    }
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+
+    private void HandLeftEventForwarder_OnCollisionEnter2DEvent(EventForwarder thiz, Collision2D param)
+    {
+        if (param.gameObject.GetComponent<Rigidbody2D>())
+        {
+            float speed = handLeftLastVelocity.magnitude;
+            Vector2 direction = Vector2.Reflect(handLeftLastVelocity.normalized, param.contacts['['/]0[']'/].normal);
+            param.gameObject.GetComponent<Rigidbody2D>().velocity = direction * speed;
+        }
+
+    }
+
+    private void HandRightEventForwarder_OnCollisionEnter2DEvent(EventForwarder thiz, Collision2D param)
+    {
+        if (param.gameObject.GetComponent<Rigidbody2D>())
+        {
+            float speed = handRightLastVelocity.magnitude;
+            Vector2 direction = Vector2.Reflect(handRightLastVelocity.normalized, param.contacts['['/]0[']'/].normal);
+            param.gameObject.GetComponent<Rigidbody2D>().velocity = direction * speed;
+        }
+    }
+[/if]
+[for (actor : Actor  | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+    
+	private void ManageKinectControls()
+    {
+        if (gestureListener)
+        {
+		[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+			[if (control.moves.x <> 0)]
+            if (gestureListener.IsMove[control.name.toUpperFirst()/]())
+            {
+                Move[control.name.toUpperFirst()/]();
+				[if (control.projectile <> null and control.shoots <> null and control.moves.x < 0)]
+				if (canFire && kinectManager.GetLeftHandState(userId) == KinectInterop.HandState.Lasso)
+					ControlsManager.Shoot(actorsObject, [control.projectile.name/], GameObject.Find("[for (actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for]"), new Vector2([control.shoots.x/]f, [control.shoots.y/]f));
+				[/if]
+				[if (control.projectile <> null and control.shoots <> null and control.moves.x > 0)]
+				if (canFire && kinectManager.GetRightHandState(userId) == KinectInterop.HandState.Lasso)
+					ControlsManager.Shoot(actorsObject, [control.projectile.name/], GameObject.Find("[for (actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for]"), new Vector2([control.shoots.x/]f, [control.shoots.y/]f));
+				[/if]
+            }
+			[/if]
+			[if (control.moves.x = 0)]
+            if (gestureListener.IsMove[control.name.toUpperFirst()/]LeftArm() || gestureListener.IsMove[control.name.toUpperFirst()/]RightArm())
+            {
+                Move[control.name.toUpperFirst()/]();
+				[if (control.projectile <> null and control.shoots <> null)]
+				if (canFire && (kinectManager.GetLeftHandState(userId) == KinectInterop.HandState.Lasso || kinectManager.GetRightHandState(userId) == KinectInterop.HandState.Lasso))
+					ControlsManager.Shoot(actorsObject, [control.projectile.name/], GameObject.Find("[for (actor : Actor  | m.game.actorSection.actors)][if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))][actor.name/][/if][/for]"), new Vector2([control.shoots.x/]f, [control.shoots.y/]f));
+				[/if]
+            }
+			[/if]
+		[/for]
+        }
+    }
+	[/if]
+[/for]
+
+    private void CheckTPose()
+    {
+        if (!gameOver && !gameStarted)
+        {
+            if (gestureListener)
+            {
+                if (gestureListener.IsTPose())
+                {
+                    StartGame();
+                }
+            }
+        }
+    }
+
+	private void ManageGUI()
+	{
+		if (!gameOver && !gameStarted)
+		{
+   			GuiManager.Show(startGUIObject);
+    		GuiManager.Hide(endGUIObject);
+    		GuiManager.Hide(timeBoardObject);
+    		GuiManager.Hide(scoreBoardObject);
+		}
+
+		if (!gameOver && gameStarted)
+		{
+            GuiManager.Hide(startGUIObject);
+            GuiManager.Hide(endGUIObject);
+            GuiManager.Show(timeBoardObject);
+            GuiManager.Show(scoreBoardObject);
+			GuiManager.UpdateTime(ref timeTextObject, time);
+		}
+
+        if (gameOver && gameStarted)
+        {
+            GuiManager.SetFinalScore(ref finalScoreObject, scoreTextObject);
+            GuiManager.Show(endGUIObject);
+            GuiManager.Hide(startGUIObject);
+            GuiManager.Hide(timeBoardObject);
+            GuiManager.Hide(scoreBoardObject);
+        }
+	}
+
+	private void ManageActivities()
+	{
+		if (!gameOver && gameStarted)
+		{
+[for (activity : Activity | game.activitySection.activities)]
+			if ([activity.activityID/]Timer >= [activity.activityDefinition.frequency/]f)
+			{
+	        	[activity.activityID/]Timer = 0;
+	        	ActivityManager.Appear(actorsObject, ref [activity.activityDefinition.linkedElement.name/], new Vector3([activity.activityDefinition.coordinate.x/]f, [activity.activityDefinition.coordinate.y/]f), new Vector2([activity.activityDefinition.linearSpeed.x/]f, [activity.activityDefinition.linearSpeed.y/]f), [activity.activityDefinition.angularVelocity.angularSpeed.value/]f);
+			}
+[/for]
+		}
+	}
+
+    private void SetTPoseGUI()
+    {
+        Sprite checkTposeSprite;
+        ResourceManager.Load(out checkTposeSprite, "tPose");
+        startGUIObject.GetComponent<Image>().sprite = checkTposeSprite;
+        foreach (Transform child in startGUIObject.transform)
+        {
+            Destroy(child.gameObject);
+        }
+    }
+
+	private void StartGame()
+    {
+        gameStarted = true;
+        InitLayout();
+
+[for (actor : Actor  | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+		[for (location : Location | m.game.layoutSection.locations)]
+			[if (location.element.name.equalsIgnoreCase(actor.name))]
+		LayoutManager.LocateActor(actorsObject, ref [actor.name/], new Vector3([location.coordinate.x/]f, [location.coordinate.y/]f));
+			[/if]
+		[/for]
+		Set[actor.name.toUpperFirst()/]EventForwarder();
+	[/if]
+[/for]
+
+        //here SET event forwarder for every object that needs one (Main Actor one's will be set up in the Start function)
+        //for example:
+        //Dynamic Camera
+        //Protagonists of scoring rules such as collision-based rules IF they are already in the scene
+        //Otherwise if they will appear in the scene in the future, their event forwarders will be set in the update function
+[if (game.environmentSection.environment.camera->first().toString().equalsIgnoreCase('continuous'))]
+        SetCameraEventForwarder();
+[/if]
+[for (actor : Actor | game.actorSection.actors->select(a : Actor | not(a.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))))]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) = 1))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+		Set[actor.name.toUpperFirst()/]EventForwarder();
+		[/if]
+	[/if]
+	[if((m.game.activitySection.activities.activityDefinition.linkedElement->count(actor) = 0) and (m.game.layoutSection.locations.element->count(actor) > 1))]
+		[if ((m.game.socoringSection.scoreRules->selectByKind(CollisionRule)->select(cr : CollisionRule | cr.elementA = actor)->size() > 0))]
+		Set[actor.name.toUpperFirst()/]sEventForwarder();
+		[/if]
+	[/if]
+[/for]
+	}
+
+    private void RestartGame()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    private void QuitGame()
+    {
+        Application.Quit();
+    }
+[for (actor : Actor  | game.actorSection.actors)]
+	[if(actor.actorDefinition->first().type.toString().equalsIgnoreCase('main actor'))]
+		[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+
+	private void Move[control.name.toUpperFirst()/]()
+	{
+		GameObject [actor.name/] = GameObject.Find("[actor.name/]");
+		ControlsManager.Move(ref [actor.name/], new Vector2([control.moves.x/]f, [control.moves.y/]f));
+	}
+		[/for]
+	[/if]
+[/for]
+}
+[/file]
+[file ('GestureListener.cs', false, 'UTF-8')]
+using UnityEngine;
+
+public class GestureListener : MonoBehaviour, KinectGestures.GestureListenerInterface
+{
+    // singleton instance of the class
+    private static GestureListener instance = null;
+
+    // whether the needed gesture has been detected or not
+    private bool tPose;
+[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+	[if (control.moves.x <> 0)]
+	private bool [control.name/];
+	[/if]
+	[if (control.moves.x = 0)]
+	private bool [control.name/]LeftArm;
+	private bool [control.name/]RightArm;
+	[/if]
+[/for]
+
+	/// <summary>
+    /// Gets the singleton CubeGestureListener instance.
+    /// </summary>
+    /// <value>The CubeGestureListener instance.</value>
+    public static GestureListener Instance
+    {
+        get
+        {
+            return instance;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether T-pose is detected.
+    /// </summary>
+    /// <returns><c>true</c> if T-pose is detected; otherwise, <c>false</c>.</returns>
+    public bool IsTPose()
+    {
+        if (tPose)
+        {
+            tPose = false;
+            return true;
+        }
+
+        return false;
+    }
+
+[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+	[if (control.moves.x <> 0)]
+    /// <summary>
+    /// Determines whether [control.name/] is detected.
+    /// </summary>
+    /// <returns><c>true</c> if [control.name/] is detected; otherwise, <c>false</c>.</returns>
+    public bool IsMove[control.name.toUpperFirst()/]()
+    {
+        if ([control.name/])
+        {
+            [control.name/] = false;
+            return true;
+        }
+
+        return false;
+    }
+	[/if]
+	[if (control.moves.x = 0)]
+    /// <summary>
+    /// Determines whether [control.name/]LeftArm is detected.
+    /// </summary>
+    /// <returns><c>true</c> if [control.name/]LeftArm is detected; otherwise, <c>false</c>.</returns>
+    public bool IsMove[control.name.toUpperFirst()/]LeftArm()
+    {
+        if ([control.name/]LeftArm)
+        {
+            [control.name/]LeftArm = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether [control.name/]RightArm is detected.
+    /// </summary>
+    /// <returns><c>true</c> if [control.name/]RightArm is detected; otherwise, <c>false</c>.</returns>
+    public bool IsMove[control.name.toUpperFirst()/]RightArm()
+    {
+        if ([control.name/]RightArm)
+        {
+            [control.name/]RightArm = false;
+            return true;
+        }
+
+        return false;
+    }
+	[/if]
+[/for]
+
+    /// <summary>
+    /// Invoked when a new user is detected. Here you can start gesture tracking by invoking KinectManager.DetectGesture()-function.
+    /// </summary>
+    /// <param name="userId">User ID</param>
+    /// <param name="userIndex">User index</param>
+    public void UserDetected(long userId, int userIndex)
+    {
+        // the gestures are allowed for the primary user only
+        KinectManager manager = KinectManager.Instance;
+        if (!manager || (userId != manager.GetPrimaryUserID()))
+            return;
+
+        // detect these user specific gestures
+        manager.DetectGesture(userId, KinectGestures.Gestures.Tpose);
+[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+	[if (control.moves.x <> 0)]
+		manager.DetectGesture(userId, KinectGestures.Gestures.Move[control.name.toUpperFirst()/]);
+	[/if]
+	[if (control.moves.x = 0)]
+		manager.DetectGesture(userId, KinectGestures.Gestures.Move[control.name.toUpperFirst()/]LeftArm);
+		manager.DetectGesture(userId, KinectGestures.Gestures.Move[control.name.toUpperFirst()/]RightArm);
+	[/if]
+[/for]
+    }
+
+    /// <summary>
+    /// Invoked when a user gets lost. All tracked gestures for this user are cleared automatically.
+    /// </summary>
+    /// <param name="userId">User ID</param>
+    /// <param name="userIndex">User index</param>
+    public void UserLost(long userId, int userIndex)
+    {
+        // the gestures are allowed for the primary user only
+        KinectManager manager = KinectManager.Instance;
+        if (!manager || (userId != manager.GetPrimaryUserID()))
+            return;
+    }
+
+    /// <summary>
+    /// Invoked when a gesture is in progress.
+    /// </summary>
+    /// <param name="userId">User ID</param>
+    /// <param name="userIndex">User index</param>
+    /// <param name="gesture">Gesture type</param>
+    /// <param name="progress">Gesture progress ['['/]0..1[']'/]</param>
+    /// <param name="joint">Joint type</param>
+    /// <param name="screenPos">Normalized viewport position</param>
+    public void GestureInProgress(long userId, int userIndex, KinectGestures.Gestures gesture,
+                                  float progress, KinectInterop.JointType joint, Vector3 screenPos)
+    { }
+
+	/// <summary>
+    /// Invoked if a gesture is completed.
+    /// </summary>
+    /// <returns>true</returns>
+    /// <c>false</c>
+    /// <param name="userId">User ID</param>
+    /// <param name="userIndex">User index</param>
+    /// <param name="gesture">Gesture type</param>
+    /// <param name="joint">Joint type</param>
+    /// <param name="screenPos">Normalized viewport position</param>
+    public bool GestureCompleted(long userId, int userIndex, KinectGestures.Gestures gesture,
+                                  KinectInterop.JointType joint, Vector3 screenPos)
+    {
+        // the gestures are allowed for the primary user only
+        KinectManager manager = KinectManager.Instance;
+        if (!manager || (userId != manager.GetPrimaryUserID()))
+            return false;
+
+        if (gesture == KinectGestures.Gestures.Tpose)
+            tPose = true;
+[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+	[if (control.moves.x <> 0)]
+		else if (gesture == KinectGestures.Gestures.Move[control.name.toUpperFirst()/])
+            [control.name/] = true;
+	[/if]
+	[if (control.moves.x = 0)]
+		else if (gesture == KinectGestures.Gestures.Move[control.name.toUpperFirst()/]LeftArm)
+            [control.name/]LeftArm = true;
+		else if (gesture == KinectGestures.Gestures.Move[control.name.toUpperFirst()/]RightArm)
+            [control.name/]RightArm = true;
+	[/if]
+[/for]
+
+        return true;
+    }
+
+	/// <summary>
+    /// Invoked if a gesture is cancelled.
+    /// </summary>
+    /// <returns>true</returns>
+    /// <c>false</c>
+    /// <param name="userId">User ID</param>
+    /// <param name="userIndex">User index</param>
+    /// <param name="gesture">Gesture type</param>
+    /// <param name="joint">Joint type</param>
+    public bool GestureCancelled(long userId, int userIndex, KinectGestures.Gestures gesture,
+                                  KinectInterop.JointType joint)
+    {
+        // the gestures are allowed for the primary user only
+        KinectManager manager = KinectManager.Instance;
+        if (!manager || (userId != manager.GetPrimaryUserID()))
+            return false;
+
+        return true;
+    }
+
+    void Awake()
+    {
+        instance = this;
+    }
+}
+[/file]
+[file ('BodySourceView.cs', false, 'UTF-8')]
+using System.Collections.Generic;
+using UnityEngine;
+using Windows.Kinect;
+
+public class BodySourceView : MonoBehaviour
+{
+    public bool bodyCreated = false;
+
+    private KinectSensor _Sensor;
+    private MainScript mainScript;
+    private BodySourceManager _BodyManager;
+
+    //BodyManager object and the Dictionary will store the bodies being tracked
+    private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
+    public static Body['['/][']'/] data;
+
+    private List<Windows.Kinect.JointType> _joints = new List<JointType>
+    {
+        Windows.Kinect.JointType.HandLeft,
+        Windows.Kinect.JointType.HandRight,
+    };
+
+    private void Start()
+    {
+        mainScript = gameObject.GetComponent<MainScript>();
+        _Sensor = KinectSensor.GetDefault();
+        if (_Sensor != null)
+        {
+            if (!_Sensor.IsOpen)
+            {
+                _Sensor.Open();
+            }
+        }
+    }
+
+    private void Update()
+    {
+        if (_Sensor == null)
+        {
+            return;
+        }
+
+        _BodyManager = gameObject.GetComponent<BodySourceManager>();
+        if (_BodyManager == null)
+        {
+            return;
+        }
+
+        data = _BodyManager.GetData();
+        if (data == null)
+        {
+            return;
+        }
+
+        //Gets the amount of bodies in the list of tracked bodies
+        //Then we can delete unknown bodies
+        List<ulong> trackedIds = new List<ulong>();
+        foreach (var body in data)
+        {
+            if (body == null)
+            {
+                continue;
+            }
+
+            if (body.IsTracked)
+            {
+                trackedIds.Add(body.TrackingId);
+            }
+        }
+
+        List<ulong> knownIds = new List<ulong>(_Bodies.Keys);
+
+        // First delete untracked bodies
+        foreach (ulong trackingId in knownIds)
+        {
+            if (!trackedIds.Contains(trackingId))
+            {
+                Destroy(_Bodies['['/]trackingId[']'/]);
+                _Bodies.Remove(trackingId);
+                bodyCreated = false;
+            }
+        }
+
+        //Finds the bodies that we need to create a tracking Id and a body object for
+        //If the body is already being tracked, then it just refreshes the drawn body
+        foreach (var body in data)
+        {
+            if (body == null)
+            {
+                continue;
+            }
+
+            if (body.IsTracked)
+            {
+                if (!_Bodies.ContainsKey(body.TrackingId))
+                {
+                    _Bodies['['/]body.TrackingId[']'/] = CreateBodyObject(body.TrackingId);
+                }
+
+                RefreshBodyObject(body, _Bodies['['/]body.TrackingId[']'/]);
+            }
+        }
+    }
+
+    //Takes an ID and returns a body gameobject
+    private GameObject CreateBodyObject(ulong id)
+    {
+        mainScript.bodyObject = new GameObject("Body:" + id);
+        mainScript.bodyObject.transform.SetParent(GameObject.Find("MainCamera").transform);
+        mainScript.bodyObject.transform.localPosition = Vector3.zero;
+
+        foreach (Windows.Kinect.JointType joint in _joints)
+        {
+            bool isLeft = joint.ToString() == "HandLeft";
+
+            if (isLeft)
+            {
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('true'))]
+				ControlsManager.SetHandCursor(mainScript.bodyObject, mainScript.handLeftObject, "hand", true, true);
+[/if]
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+				ControlsManager.SetHandCursor(mainScript.bodyObject, mainScript.handLeftObject, "hand", true, false);
+[/if]
+            }
+            else
+            {
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('true'))]
+                ControlsManager.SetHandCursor(mainScript.bodyObject, mainScript.handRightObject, "hand", false, true);
+[/if]
+[if (game.environmentSection.environment->first().touchscreen.toString().equalsIgnoreCase('false'))]
+                ControlsManager.SetHandCursor(mainScript.bodyObject, mainScript.handRightObject, "hand", false, false);
+[/if]
+            }
+        }
+
+        bodyCreated = true;
+        return mainScript.bodyObject;
+    }
+
+    //Takes in the current body and the tracking number and draws the bones again
+    private void RefreshBodyObject(Windows.Kinect.Body body, GameObject bodyObject)
+    {
+        // Update joints
+        foreach (Windows.Kinect.JointType _joint in _joints)
+        {
+            // Get new target poisition
+            Windows.Kinect.Joint sourceJoint = body.Joints['['/]_joint[']'/];
+            Vector3 targetPosition = bodyObject.transform.position + GetVector3FromJoint(sourceJoint);
+            targetPosition.z = 0;
+
+            // Get joint, set new position
+            Transform jointObject = bodyObject.transform.Find(_joint.ToString());
+            jointObject.position = targetPosition;
+        }
+    }
+
+    //Gets the Vector3 from the sourceJoint so that we can update the position of the skeleton accurately
+    private static Vector3 GetVector3FromJoint(Windows.Kinect.Joint joint)
+    {
+        return new Vector3(joint.Position.X * 10, joint.Position.Y * 10, joint.Position.Z * 10);
+    }
+}
+[/file]
+[file ('KinectGestures.cs', false, 'UTF-8')]
+using UnityEngine;
+using System.Collections.Generic;
+
+/// <summary>
+/// KinectGestures is utility class that processes programmatic Kinect gestures
+/// </summary>
+public class KinectGestures
+{
+	/// <summary>
+	/// This interface needs to be implemented by all Kinect gesture listeners
+	/// </summary>
+	public interface GestureListenerInterface
+	{
+		/// <summary>
+		/// Invoked when a new user is detected. Here you can start gesture tracking by invoking KinectManager.DetectGesture()-function.
+		/// </summary>
+		/// <param name="userId">User ID</param>
+		/// <param name="userIndex">User index</param>
+		void UserDetected(long userId, int userIndex);
+		
+		/// <summary>
+		/// Invoked when a user gets lost. All tracked gestures for this user are cleared automatically.
+		/// </summary>
+		/// <param name="userId">User ID</param>
+		/// <param name="userIndex">User index</param>
+		void UserLost(long userId, int userIndex);
+		
+		/// <summary>
+		/// Invoked when a gesture is in progress.
+		/// </summary>
+		/// <param name="userId">User ID</param>
+		/// <param name="userIndex">User index</param>
+		/// <param name="gesture">Gesture type</param>
+		/// <param name="progress">Gesture progress ['['/]0..1[']'/]</param>
+		/// <param name="joint">Joint type</param>
+		/// <param name="screenPos">Normalized viewport position</param>
+		void GestureInProgress(long userId, int userIndex, Gestures gesture, float progress, 
+		                       KinectInterop.JointType joint, Vector3 screenPos);
+
+		/// <summary>
+		/// Invoked if a gesture is completed.
+		/// </summary>
+		/// <returns><c>true</c>, if the gesture detection must be restarted, <c>false</c> otherwise.</returns>
+		/// <param name="userId">User ID</param>
+		/// <param name="userIndex">User index</param>
+		/// <param name="gesture">Gesture type</param>
+		/// <param name="joint">Joint type</param>
+		/// <param name="screenPos">Normalized viewport position</param>
+		bool GestureCompleted(long userId, int userIndex, Gestures gesture,
+		                      KinectInterop.JointType joint, Vector3 screenPos);
+
+		/// <summary>
+		/// Invoked if a gesture is cancelled.
+		/// </summary>
+		/// <returns><c>true</c>, if the gesture detection must be retarted, <c>false</c> otherwise.</returns>
+		/// <param name="userId">User ID</param>
+		/// <param name="userIndex">User index</param>
+		/// <param name="gesture">Gesture type</param>
+		/// <param name="joint">Joint type</param>
+		bool GestureCancelled(long userId, int userIndex, Gestures gesture, 
+		                      KinectInterop.JointType joint);
+	}
+
+	/// <summary>
+	/// The gesture types.
+	/// </summary>
+	public enum Gestures
+	{
+		None = 0,
+		Tpose,
+[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+	[if(control.moves.x <> 0)]
+		Move[control.name.toUpperFirst()/],
+	[/if]
+	[if(control.moves.x = 0)]
+		Move[control.name.toUpperFirst()/]LeftArm,
+		Move[control.name.toUpperFirst()/]RightArm,
+	[/if]
+[/for]
+    }
+
+    /// <summary>
+    /// Gesture data structure.
+    /// </summary>
+    public struct GestureData
+	{
+		public long userId;
+		public Gestures gesture;
+		public int state;
+		public float timestamp;
+		public int joint;
+		public Vector3 jointPos;
+		public Vector3 screenPos;
+		public float tagFloat;
+		public Vector3 tagVector;
+		public Vector3 tagVector2;
+		public float progress;
+		public bool complete;
+		public bool cancelled;
+		public List<Gestures> checkForGestures;
+		public float startTrackingAtTime;
+	}
+
+    // Gesture related constants, variables and functions
+    private static int leftHandIndex;
+	private static int rightHandIndex;
+		
+	private static int leftElbowIndex;
+	private static int rightElbowIndex;
+		
+	private static int leftShoulderIndex;
+	private static int rightShoulderIndex;
+	
+	private static int hipCenterIndex;
+	private static int shoulderCenterIndex;
+	private static int leftHipIndex;
+	private static int rightHipIndex;
+	private static int leftAnkleIndex;
+	private static int rightAnkleIndex;
+
+    /// <summary>
+    /// Gets the list of gesture joint indexes.
+    /// </summary>
+    /// <returns>The needed joint indexes.</returns>
+    /// <param name="manager">The KinectManager instance</param>
+    public static int['['/][']'/] GetNeededJointIndexes(KinectManager manager)
+	{
+		leftHandIndex = manager.GetJointIndex(KinectInterop.JointType.HandLeft);
+		rightHandIndex = manager.GetJointIndex(KinectInterop.JointType.HandRight);
+		
+		leftElbowIndex = manager.GetJointIndex(KinectInterop.JointType.ElbowLeft);
+		rightElbowIndex = manager.GetJointIndex(KinectInterop.JointType.ElbowRight);
+		
+		leftShoulderIndex = manager.GetJointIndex(KinectInterop.JointType.ShoulderLeft);
+		rightShoulderIndex = manager.GetJointIndex(KinectInterop.JointType.ShoulderRight);
+		
+		hipCenterIndex = manager.GetJointIndex(KinectInterop.JointType.SpineBase);
+		shoulderCenterIndex = manager.GetJointIndex(KinectInterop.JointType.SpineShoulder);
+
+		leftHipIndex = manager.GetJointIndex(KinectInterop.JointType.HipLeft);
+		rightHipIndex = manager.GetJointIndex(KinectInterop.JointType.HipRight);
+
+		leftAnkleIndex = manager.GetJointIndex(KinectInterop.JointType.AnkleLeft);
+		rightAnkleIndex = manager.GetJointIndex(KinectInterop.JointType.AnkleRight);
+		
+		int['['/][']'/] neededJointIndexes = {
+			leftHandIndex, rightHandIndex, leftElbowIndex, rightElbowIndex, leftShoulderIndex, rightShoulderIndex,
+			hipCenterIndex, shoulderCenterIndex, leftHipIndex, rightHipIndex, leftAnkleIndex, rightAnkleIndex
+		};
+
+		return neededJointIndexes;
+	}
+	
+	private static void SetGestureJoint(ref GestureData gestureData, float timestamp, int joint, Vector3 jointPos)
+	{
+		gestureData.joint = joint;
+		gestureData.jointPos = jointPos;
+		gestureData.timestamp = timestamp;
+		gestureData.state++;
+	}
+	
+	private static void SetGestureCancelled(ref GestureData gestureData)
+	{
+		gestureData.state = 0;
+		gestureData.progress = 0f;
+		gestureData.cancelled = true;
+	}
+
+	private static void CheckPoseComplete(ref GestureData gestureData, float timestamp, Vector3 jointPos, bool isInPose, float durationToComplete)
+	{
+		if(isInPose)
+		{
+			float timeLeft = timestamp - gestureData.timestamp;
+			gestureData.progress = durationToComplete > 0f ? Mathf.Clamp01(timeLeft / durationToComplete) : 1.0f;
+
+            if (timeLeft >= durationToComplete)
+			{
+                gestureData.timestamp = timestamp;
+				gestureData.jointPos = jointPos;
+				gestureData.state++;
+				gestureData.complete = true;
+			}
+		}
+		else
+		{
+			SetGestureCancelled(ref gestureData);
+		}
+	}
+
+	private static void SetScreenPos(long userId, ref GestureData gestureData, ref Vector3['['/][']'/] jointsPos, ref bool['['/][']'/] jointsTracked)
+	{
+		Vector3 handPos = jointsPos['['/]rightHandIndex[']'/];
+//		Vector3 elbowPos = jointsPos['['/]rightElbowIndex[']'/];
+//		Vector3 shoulderPos = jointsPos['['/]rightShoulderIndex[']'/];
+		bool calculateCoords = false;
+		
+		if(gestureData.joint == rightHandIndex)
+		{
+			if(jointsTracked['['/]rightHandIndex[']'/] /**&& jointsTracked['['/]rightElbowIndex[']'/] && jointsTracked['['/]rightShoulderIndex[']'/]*/)
+			{
+				calculateCoords = true;
+			}
+		}
+		else if(gestureData.joint == leftHandIndex)
+		{
+			if(jointsTracked['['/]leftHandIndex[']'/] /**&& jointsTracked['['/]leftElbowIndex[']'/] && jointsTracked['['/]leftShoulderIndex[']'/]*/)
+			{
+				handPos = jointsPos['['/]leftHandIndex[']'/];
+//				elbowPos = jointsPos['['/]leftElbowIndex[']'/];
+//				shoulderPos = jointsPos['['/]leftShoulderIndex[']'/];
+				
+				calculateCoords = true;
+			}
+		}
+		
+		if(calculateCoords)
+		{
+//			if(gestureData.tagFloat == 0f || gestureData.userId != userId)
+//			{
+//				// get length from shoulder to hand (screen range)
+//				Vector3 shoulderToElbow = elbowPos - shoulderPos;
+//				Vector3 elbowToHand = handPos - elbowPos;
+//				gestureData.tagFloat = (shoulderToElbow.magnitude + elbowToHand.magnitude);
+//			}
+			
+			if(jointsTracked['['/]hipCenterIndex[']'/] && jointsTracked['['/]shoulderCenterIndex[']'/] && 
+				jointsTracked['['/]leftShoulderIndex[']'/] && jointsTracked['['/]rightShoulderIndex[']'/])
+			{
+				Vector3 shoulderToHips = jointsPos['['/]shoulderCenterIndex[']'/] - jointsPos['['/]hipCenterIndex[']'/];
+				Vector3 rightToLeft = jointsPos['['/]rightShoulderIndex[']'/] - jointsPos['['/]leftShoulderIndex[']'/];
+				
+				gestureData.tagVector2.x = rightToLeft.x; // * 1.2f;
+				gestureData.tagVector2.y = shoulderToHips.y; // * 1.2f;
+				
+				if(gestureData.joint == rightHandIndex)
+				{
+					gestureData.tagVector.x = jointsPos['['/]rightShoulderIndex[']'/].x - gestureData.tagVector2.x / 2;
+					gestureData.tagVector.y = jointsPos['['/]hipCenterIndex[']'/].y;
+				}
+				else
+				{
+					gestureData.tagVector.x = jointsPos['['/]leftShoulderIndex[']'/].x - gestureData.tagVector2.x / 2;
+					gestureData.tagVector.y = jointsPos['['/]hipCenterIndex[']'/].y;
+				}
+			}
+	
+//			Vector3 shoulderToHand = handPos - shoulderPos;
+//			gestureData.screenPos.x = Mathf.Clamp01((gestureData.tagFloat / 2 + shoulderToHand.x) / gestureData.tagFloat);
+//			gestureData.screenPos.y = Mathf.Clamp01((gestureData.tagFloat / 2 + shoulderToHand.y) / gestureData.tagFloat);
+			
+			if(gestureData.tagVector2.x != 0 && gestureData.tagVector2.y != 0)
+			{
+				Vector3 relHandPos = handPos - gestureData.tagVector;
+				gestureData.screenPos.x = Mathf.Clamp01(relHandPos.x / gestureData.tagVector2.x);
+				gestureData.screenPos.y = Mathf.Clamp01(relHandPos.y / gestureData.tagVector2.y);
+			}
+			
+			//Debug.Log(string.Format("{0} - S: {1}, H: {2}, SH: {3}, L : {4}", gestureData.gesture, shoulderPos, handPos, shoulderToHand, gestureData.tagFloat));
+		}
+	}
+
+	// estimate the next state and completeness of the gesture
+	/// <summary>
+	/// estimate the state and progress of the given gesture.
+	/// </summary>
+	/// <param name="userId">User ID</param>
+	/// <param name="gestureData">Gesture-data structure</param>
+	/// <param name="timestamp">Current time</param>
+	/// <param name="jointsPos">Joints-position array</param>
+	/// <param name="jointsTracked">Joints-tracked array</param>
+	public static void CheckForGesture(long userId, ref GestureData gestureData, float timestamp, ref Vector3['['/][']'/] jointsPos, ref bool['['/][']'/] jointsTracked)
+	{
+		if(gestureData.complete)
+			return;
+		
+		float bandSize = (jointsPos['['/]shoulderCenterIndex[']'/].y - jointsPos['['/]hipCenterIndex[']'/].y);
+		float gestureTop = jointsPos['['/]shoulderCenterIndex[']'/].y + bandSize * 1.2f / 3f;
+		float gestureBottom = jointsPos['['/]shoulderCenterIndex[']'/].y - bandSize * 1.8f / 3f;
+		float gestureRight = jointsPos['['/]rightHipIndex[']'/].x;
+		float gestureLeft = jointsPos['['/]leftHipIndex[']'/].x;
+		
+		switch(gestureData.gesture)
+		{
+			// check for Tpose
+			case Gestures.Tpose:
+				switch(gestureData.state)
+				{
+					case 0:  // gesture detection
+						if(jointsTracked['['/]rightHandIndex[']'/] && jointsTracked['['/]rightElbowIndex[']'/] && jointsTracked['['/]rightShoulderIndex[']'/] &&
+					       Mathf.Abs(jointsPos['['/]rightElbowIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) < 0.1f &&  // 0.07f
+					       Mathf.Abs(jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) < 0.1f &&  // 0.7f
+					   	   jointsTracked['['/]leftHandIndex[']'/] && jointsTracked['['/]leftElbowIndex[']'/] && jointsTracked['['/]leftShoulderIndex[']'/] &&
+					  	   Mathf.Abs(jointsPos['['/]leftElbowIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) < 0.1f &&
+					       Mathf.Abs(jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) < 0.1f)
+						{
+							SetGestureJoint(ref gestureData, timestamp, rightHandIndex, jointsPos['['/]rightHandIndex[']'/]);
+						}
+						break;
+						
+					case 1:  // gesture complete
+						bool isInPose = jointsTracked['['/]rightHandIndex[']'/] && jointsTracked['['/]rightElbowIndex[']'/] && jointsTracked['['/]rightShoulderIndex[']'/] &&
+								Mathf.Abs(jointsPos['['/]rightElbowIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) < 0.1f &&  // 0.7f
+							    Mathf.Abs(jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) < 0.1f &&  // 0.7f
+							    jointsTracked['['/]leftHandIndex[']'/] && jointsTracked['['/]leftElbowIndex[']'/] && jointsTracked['['/]leftShoulderIndex[']'/] &&
+								Mathf.Abs(jointsPos['['/]leftElbowIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) < 0.1f &&
+							    Mathf.Abs(jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) < 0.1f;
+
+                        MainScript mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+                        mainScript.leftShoulderToHandLenght = (jointsPos['['/]leftShoulderIndex[']'/].x - jointsPos['['/]leftHandIndex[']'/].x);
+                        mainScript.rightShoulderToHandLenght = (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x);
+
+                        Vector3 jointPos = jointsPos['['/]gestureData.joint[']'/];
+						CheckPoseComplete(ref gestureData, timestamp, jointPos, isInPose, KinectInterop.Constants.PoseCompleteDuration);
+						break;
+				}
+				break;
+[for (control : Control | m.game.controlSection.controls->select(c : Control | c.moves <> null))]
+	[if (control.moves.x > 0)]
+            case Gestures.Move[control.name.toUpperFirst()/]:
+                switch (gestureData.state)
+                {
+                    case 0:  // gesture detection
+                        MainScript mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        float actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
+                        float RadTolerance = 0.01f; // % of tolerance (tuneable)
+                        float idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad); //ideal orthogonal projection on X axis
+                        float actualRSHx = (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
+                        float rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        float idealRSHy = [if(control.moves.y < 0)]-([/if]mainScript.rightShoulderToHandLenght * Mathf.Sin(idealRad)[if(control.moves.y < 0)])[/if]; //ideal orthogonal projection on Y axis
+                        float actualRSHy = (jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) * Mathf.Sin(actualRad); //actual orthogonal projection on Y axis
+                        float rshyTolerance = idealRSHy <= 0.35f ? 0.15f : idealRSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        if (jointsTracked['['/]rightShoulderIndex[']'/] && jointsTracked['['/]rightHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + RadTolerance)) && (actualRad >= (idealRad - RadTolerance))) && 
+                            ((actualRSHx <= (idealRSHx + rshxTolerance)) && (actualRSHx >= (idealRSHx - rshxTolerance))) &&
+                            ((actualRSHy <= (idealRSHy + rshyTolerance)) && (actualRSHy >= (idealRSHy - rshyTolerance))))
+                        {
+                            SetGestureJoint(ref gestureData, timestamp, rightHandIndex, jointsPos['['/]rightHandIndex[']'/]);
+                        }
+                        break;
+
+                    case 1:  // gesture complete
+                        mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x));
+                        RadTolerance = 0.01f;
+                        idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad);
+                        actualRSHx = ((jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad));
+                        rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        idealRSHy = [if(control.moves.y < 0)]-([/if]mainScript.rightShoulderToHandLenght * Mathf.Sin(idealRad)[if(control.moves.y < 0)])[/if];
+                        actualRSHy = (jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) * Mathf.Sin(actualRad);
+                        rshyTolerance = idealRSHy <= 0.35f ? 0.15f : idealRSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        bool isInPose = (jointsTracked['['/]rightShoulderIndex[']'/] && jointsTracked['['/]rightHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + RadTolerance)) && (actualRad >= (idealRad - RadTolerance))) &&
+                            ((actualRSHx <= (idealRSHx + rshxTolerance)) && (actualRSHx >= (idealRSHx - rshxTolerance))) &&
+                            ((actualRSHy <= (idealRSHy + rshyTolerance)) && (actualRSHy >= (idealRSHy - rshyTolerance))));
+
+                        Vector3 jointPos = jointsPos['['/]gestureData.joint[']'/];
+                        CheckPoseComplete(ref gestureData, timestamp, jointPos, isInPose, KinectInterop.Constants.PoseCompleteDuration);
+                        break;
+                }
+                break;
+	[/if]
+	[if (control.moves.x < 0)]
+            case Gestures.Move[control.name.toUpperFirst()/]:
+                switch (gestureData.state)
+                {
+                    case 0:  // gesture detection
+                        MainScript mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        float actualRad = Mathf.PI - Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
+                        float radTolerance = 0.01f; // % of tolerance (tuneable)
+                        float idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
+                        float actualLSHx = (jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
+                        float lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        float idealLSHy = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Sin(idealRad)); //ideal orthogonal projection on Y axis
+                        float actualLSHy = (jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) * Mathf.Sin(actualRad); //actual orthogonal projection on Y axis
+                        float lshyTolerance = idealLSHy <= 0.35f ? 0.15f : idealLSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        if (jointsTracked['['/]leftShoulderIndex[']'/] && jointsTracked['['/]leftHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + radTolerance)) && (actualRad >= (idealRad - radTolerance))) && 
+                            ((actualLSHx <= (idealLSHx + lshxTolerance)) && (actualLSHx >= (idealLSHx - lshxTolerance))) &&
+                            ((actualLSHy <= (idealLSHy + lshyTolerance)) && (actualLSHy >= (idealLSHy - lshyTolerance))))
+                        {
+                            SetGestureJoint(ref gestureData, timestamp, leftHandIndex, jointsPos['['/]leftHandIndex[']'/]);
+                        }
+                        break;
+
+                    case 1:  // gesture complete
+                        mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        actualRad = Mathf.PI - Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
+                        radTolerance = 0.01f; // % of tolerance (tuneable)
+                        idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
+                        actualLSHx = (jointsPos['['/]leftHandIndex].x - jointsPos['['/]leftShoulderIndex].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
+                        lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        idealLSHy = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Sin(idealRad)); //ideal orthogonal projection on Y axis
+                        actualLSHy = (jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) * Mathf.Sin(actualRad); //actual orthogonal projection on Y axis
+                        lshyTolerance = idealLSHy <= 0.35f ? 0.15f : idealLSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        bool isInPose = (jointsTracked['['/]leftShoulderIndex[']'/] && jointsTracked['['/]leftHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + radTolerance)) && (actualRad >= (idealRad - radTolerance))) &&
+                            ((actualLSHx <= (idealLSHx + lshxTolerance)) && (actualLSHx >= (idealLSHx - lshxTolerance))) &&
+                            ((actualLSHy <= (idealLSHy + lshyTolerance)) && (actualLSHy >= (idealLSHy - lshyTolerance))));
+
+                        Vector3 jointPos = jointsPos['['/]gestureData.joint[']'/];
+                        CheckPoseComplete(ref gestureData, timestamp, jointPos, isInPose, KinectInterop.Constants.PoseCompleteDuration);
+                        break;
+                }
+                break;
+	[/if]
+	[if (control.moves.x = 0)]
+			case Gestures.Move[control.name.toUpperFirst()/]LeftArm:
+                switch (gestureData.state)
+                {
+                    case 0:  // gesture detection
+                        MainScript mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        float actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
+                        float radTolerance = 0.01f; // % of tolerance (tuneable)
+                        float idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
+                        float actualLSHx = (jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
+                        float lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        float idealLSHy = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Sin(idealRad)); //ideal orthogonal projection on Y axis
+                        float actualLSHy = (jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) * Mathf.Sin(actualRad); //actual orthogonal projection on Y axis
+                        float lshyTolerance = idealLSHy <= 0.35f ? 0.15f : idealLSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        if (jointsTracked['['/]leftShoulderIndex[']'/] && jointsTracked['['/]leftHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + radTolerance)) && (actualRad >= (idealRad - radTolerance))) && 
+                            ((actualLSHx <= (idealLSHx + lshxTolerance)) && (actualLSHx >= (idealLSHx - lshxTolerance))) &&
+                            ((actualLSHy <= (idealLSHy + lshyTolerance)) && (actualLSHy >= (idealLSHy - lshyTolerance))))
+                        {
+                            SetGestureJoint(ref gestureData, timestamp, leftHandIndex, jointsPos['['/]leftHandIndex[']'/]);
+                        }
+                        break;
+
+                    case 1:  // gesture complete
+                        mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
+                        radTolerance = 0.01f; // % of tolerance (tuneable)
+                        idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
+                        actualLSHx = (jointsPos['['/]leftHandIndex].x - jointsPos['['/]leftShoulderIndex].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
+                        lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        idealLSHy = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Sin(idealRad)); //ideal orthogonal projection on Y axis
+                        actualLSHy = (jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y) * Mathf.Sin(actualRad); //actual orthogonal projection on Y axis
+                        lshyTolerance = idealLSHy <= 0.35f ? 0.15f : idealLSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        bool isInPose = (jointsTracked['['/]leftShoulderIndex[']'/] && jointsTracked['['/]leftHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + radTolerance)) && (actualRad >= (idealRad - radTolerance))) &&
+                            ((actualLSHx <= (idealLSHx + lshxTolerance)) && (actualLSHx >= (idealLSHx - lshxTolerance))) &&
+                            ((actualLSHy <= (idealLSHy + lshyTolerance)) && (actualLSHy >= (idealLSHy - lshyTolerance))));
+
+                        Vector3 jointPos = jointsPos['['/]gestureData.joint[']'/];
+                        CheckPoseComplete(ref gestureData, timestamp, jointPos, isInPose, KinectInterop.Constants.PoseCompleteDuration);
+                        break;
+                }
+                break;
+
+            case Gestures.Move[control.name.toUpperFirst()/]RightArm:
+                switch (gestureData.state)
+                {
+                    case 0:  // gesture detection
+                        MainScript mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        float actualRad = Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
+                        float RadTolerance = 0.01f; // % of tolerance (tuneable)
+                        float idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad); //ideal orthogonal projection on X axis
+                        float actualRSHx = (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
+                        float rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        float idealRSHy = mainScript.rightShoulderToHandLenght * Mathf.Sin(idealRad); //ideal orthogonal projection on Y axis
+                        float actualRSHy = (jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) * Mathf.Sin(actualRad); //actual orthogonal projection on Y axis
+                        float rshyTolerance = idealRSHy <= 0.35f ? 0.15f : idealRSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        if (jointsTracked['['/]rightShoulderIndex[']'/] && jointsTracked['['/]rightHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + RadTolerance)) && (actualRad >= (idealRad - RadTolerance))) && 
+                            ((actualRSHx <= (idealRSHx + rshxTolerance)) && (actualRSHx >= (idealRSHx - rshxTolerance))) &&
+                            ((actualRSHy <= (idealRSHy + rshyTolerance)) && (actualRSHy >= (idealRSHy - rshyTolerance))))
+                        {
+                            SetGestureJoint(ref gestureData, timestamp, rightHandIndex, jointsPos['['/]rightHandIndex[']'/]);
+                        }
+                        break;
+
+                    case 1:  // gesture complete
+                        mainScript = GameObject.Find("GameObject").GetComponent<MainScript>();
+
+                        idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
+                        actualRad = Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x));
+                        RadTolerance = 0.01f;
+                        idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad);
+                        actualRSHx = ((jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad));
+                        rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
+                        idealRSHy = mainScript.rightShoulderToHandLenght * Mathf.Sin(idealRad);
+                        actualRSHy = (jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y) * Mathf.Sin(actualRad);
+                        rshyTolerance = idealRSHy <= 0.35f ? 0.15f : idealRSHy * 35.0f / 100.0f; // % of tolerance (tuneable)
+
+                        bool isInPose = (jointsTracked['['/]rightShoulderIndex[']'/] && jointsTracked['['/]rightHandIndex[']'/] &&
+                            ((actualRad <= (idealRad + RadTolerance)) && (actualRad >= (idealRad - RadTolerance))) &&
+                            ((actualRSHx <= (idealRSHx + rshxTolerance)) && (actualRSHx >= (idealRSHx - rshxTolerance))) &&
+                            ((actualRSHy <= (idealRSHy + rshyTolerance)) && (actualRSHy >= (idealRSHy - rshyTolerance))));
+
+                        Vector3 jointPos = jointsPos['['/]gestureData.joint[']'/];
+                        CheckPoseComplete(ref gestureData, timestamp, jointPos, isInPose, KinectInterop.Constants.PoseCompleteDuration);
+                        break;
+                }
+                break;
+	[/if]
+[/for]
+        }
+	}
+}
+[/file]
+[/template]

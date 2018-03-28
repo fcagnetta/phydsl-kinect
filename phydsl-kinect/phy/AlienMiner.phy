@@ -1,0 +1,280 @@
+Types:
+
+// Resources
+resource alien: "alien"
+resource meteorite: "asteroid_fire"
+resource emerald: "emerald"
+resource brick: "granite"
+resource planet: "alien_planet"
+resource crash: "glass_koenig"
+resource upBtn: "arrow_up"
+resource downBtn: "arrow_down"
+resource rightBtn: "arrow_right"
+resource leftBtn: "arrow_left"
+resource aBtn: "a_button"
+resource diamond: "diamond"
+resource star: "level_end"
+
+// Elasticity
+elasticity zero: 0.0
+elasticity rock: 0.05
+elasticity wood: 0.5
+elasticity tennisBall: 2.0
+elasticity beachBall: 4.0
+
+//Friction (us)
+friction zero: 0.0
+friction teflon: 0.04
+friction ice: 0.1
+friction brick: 0.4
+friction rough: 0.7
+friction infinite: 100.0
+
+// Density g/cm^3
+density zero: 0.00
+density cork: 1.12
+density rubber: 1.2
+density stone: 2.3
+density granite: 2.6
+density glass: 2.7
+density lean: 11.3
+
+// Linear speed
+linear speed fast: (40.0, 40.0) 
+linear speed slow: (10.0, 10.0) 
+
+// Angular Velocity
+angular velocity fast: 40.0
+angular velocity slow: 10.0
+
+// Gravity
+gravity moon: 4.0
+gravity earth: 9.8
+
+// Actor Sizes
+size tiny: 0.2
+size teensy: 0.3
+size short: 0.4
+size medium: 0.45
+size small: 2.0
+size huge: 8.0
+
+// Actions
+force up: (0.0, -5.0)
+force down: (0.0, 5.0)
+force right: (2.0, 0.0)
+force left: (-2.0, 0.0)
+
+Game AlienMiner:
+
+	design actors:
+	
+	actor: alien (
+		density: cork 
+		elasticity: wood 
+		friction: infinite 
+		image: alien
+		size: medium
+		shape: circle
+		mobility: dynamic 
+		type: main actor
+	)
+	
+	actor: meteorite (
+		density: granite 
+		elasticity:wood 
+		friction:rough 
+		image:meteorite 
+		size:small
+		shape: circle
+		mobility: dynamic 
+		type: concrete
+	)
+	
+	actor: brick(
+		density: cork 
+		elasticity: rock 
+		friction: brick 
+		image:brick
+		size: teensy
+		shape: square
+		mobility: static
+		type: concrete
+	)
+	
+	actor: emerald(
+		density: zero
+		elasticity: zero
+		friction: zero
+		image: emerald
+		size: teensy
+		shape: circle
+		mobility: static
+		type: concrete
+	)
+	
+	actor: diamond(
+		density: zero
+		elasticity: zero
+		friction: zero
+		image: diamond
+		size: teensy
+		shape: circle
+		mobility: static
+		type: abstract
+	)
+	
+	actor: star(
+		density: zero
+		elasticity: zero
+		friction: zero
+		image: star
+		size: short
+		shape: circle
+		mobility: static
+		type: concrete
+	)
+	
+	design layout:
+		locate: alien (1.0, 1.0)
+		locate: brick (5.0, 3.0)
+		locate: brick (5.5, 3.0)
+		locate: brick (6.0, 3.0)
+		locate: brick (5.0, 6.5)
+		locate: brick (5.5, 6.5)
+		locate: brick (6.0, 6.5)
+		locate: brick (6.5, 6.5)
+		locate: brick (7.0, 6.5)
+		locate: brick (7.5, 6.5)
+		locate: brick (8.0, 6.5)
+		locate: brick (8.5, 6.5)
+		locate: brick (9.0, 6.5)
+		locate: brick (9.5, 6.5)
+		locate: brick (3.0, 9.0)
+		locate: brick (3.5, 9.0)
+     	locate: brick (4.0, 9.0)
+     	locate: brick (4.5, 9.0)
+     	locate: brick (11.0, 2.5)
+     	locate: brick (11.5, 2.5)
+     	locate: brick (12.0, 2.5)
+     	locate: brick (12.5, 2.5)
+     	locate: brick (13.0, 2.5)
+     	locate: brick (13.0, 7.5)
+     	locate: brick (13.5, 7.5)
+     	locate: brick (14.0, 7.5)
+     	locate: brick (14.5, 7.5)
+     	locate: brick (20.0, 3.0)
+     	locate: brick (20.0, 3.5)
+     	locate: brick (20.0, 6.0)
+     	locate: brick (20.0, 6.5)
+     	locate: brick (28.0, 3.5)
+		locate: brick (28.5, 3.5)
+		locate: brick (29.0, 3.5)
+		locate: brick (35.0, 9.0)
+		locate: brick (35.5, 9.0)
+		locate: brick (36.0, 9.0)
+		locate: brick (36.5, 9.0)
+		locate: brick (37.0, 9.0)
+		locate: brick (37.5, 9.0)
+		locate: brick (38.0, 5.0)
+		locate: brick (38.5, 5.0)
+		locate: brick (39.0, 5.0)
+		locate: brick (39.5, 5.0)
+		locate: brick (40.0, 5.0)
+		locate: brick (44.0, 9.0)
+		locate: brick (44.5, 9.0)
+		locate: brick (45.0, 9.0)
+		locate: brick (45.5, 9.0)
+		locate: brick (46.0, 9.0)
+		locate: brick (46.5, 9.0)
+		locate: brick (47.0, 9.0)
+	    locate: brick (60.0, 8.0)
+		locate: brick (60.5, 8.0)
+		locate: brick (61.0, 8.0)
+        locate: brick (54.0, 4.0)
+        locate: brick (54.0, 5.0)
+        locate: brick (54.0, 6.0)
+        locate: brick (68.0, 4.0)
+        locate: brick (68.0, 5.0)
+        locate: brick (68.0, 6.0)
+        locate: emerald (5.0, 2.25)
+        locate: emerald (6.0, 5.75)
+        locate: emerald (12.0, 1.75)
+        locate: emerald (15.0, 2.0)
+        locate: emerald (30.0, 5.0)
+        locate: emerald (35.0, 8.0)
+        locate: emerald (45.0, 8.0)
+        locate: emerald (50.0, 5.0)
+        locate: emerald (60.5, 6.0)
+        locate: emerald (70.0, 5.0)
+        locate: emerald (70.0, 6.0)
+        locate: diamond (3.0, 3.0)
+        locate: diamond (7.0, 5.75)
+        locate: diamond (9.0, 7.0)
+        locate: diamond (20.0, 5.0)
+        locate: diamond (30.0, 6.0)
+        locate: diamond (60.5, 7.0)
+        locate: star (70.0, 8.0)
+
+	design environment:
+		gravity: earth
+		background: (image: planet segments:9)
+		touchscreen enabled: false
+		camera: continuous  
+	
+	design activities:
+		appear activity shower(
+			actor:meteorite
+			frequency:4.0
+			angular velocity: slow 
+			linear speed:slow
+			position:(2.0, 4.0) 
+		)
+		
+		appear activity middle(
+			actor:meteorite
+			frequency:8.0
+			angular velocity: slow 
+			linear speed:slow
+			position:(40.0, 4.0) 
+		)
+	
+	design scoring rules: 
+		rule: pointsUp collision of alien with emerald (
+			points:30
+			game ends:false 
+			actor disappears:emerald 
+			haptic feedback:false
+		)
+		
+		rule: pointsDown collision of alien with meteorite (
+			points:-20 
+			game ends:false 
+			actor disappears:meteorite 
+			haptic feedback:false
+		)
+		
+		rule: timeup timed 60 seconds (
+			points:0
+			game ends:true
+			haptic feedback:false
+		)
+		
+		rule: collectDiamond touch of diamond (
+			points:20 
+			game ends:false
+			actor disappears:diamond 
+			haptic feedback:true
+			sound feedback: crash
+		)
+		
+		rule: levelEnd collision of alien with star (
+			points:0 
+			game ends: true 
+			haptic feedback:false
+		)
+		
+	design main actor controls:
+		control: jump (image: aBtn  position: (6.75, 3.6) moves: up)
+		control: right (image: rightBtn  position: (1.0, 3.6) moves: right)
+		control: left (image: leftBtn  position: (0.1, 3.6) moves: left)

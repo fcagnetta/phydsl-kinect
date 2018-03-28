@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="ASCII"?>
+<phydsl:Model xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:phydsl="http://www.edu.ualberta/cs/ssrg/phy/Phydsl">
+  <types>
+    <dataTypes xsi:type="phydsl:ResourceType" name="alien" value="alien"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="meteorite" value="asteroid_fire"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="emerald" value="emerald"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="brick" value="granite"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="planet" value="alien_planet"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="crash" value="glass_koenig"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="upBtn" value="arrow_up"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="downBtn" value="arrow_down"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="rightBtn" value="arrow_right"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="leftBtn" value="arrow_left"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="aBtn" value="a_button"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="diamond" value="diamond"/>
+    <dataTypes xsi:type="phydsl:ResourceType" name="star" value="level_end"/>
+    <dataTypes xsi:type="phydsl:ElastisityType" name="zero"/>
+    <dataTypes xsi:type="phydsl:ElastisityType" name="rock" value="0.05"/>
+    <dataTypes xsi:type="phydsl:ElastisityType" name="wood" value="0.5"/>
+    <dataTypes xsi:type="phydsl:ElastisityType" name="tennisBall" value="2.0"/>
+    <dataTypes xsi:type="phydsl:ElastisityType" name="beachBall" value="4.0"/>
+    <dataTypes xsi:type="phydsl:FrictionType" name="zero"/>
+    <dataTypes xsi:type="phydsl:FrictionType" name="teflon" value="0.04"/>
+    <dataTypes xsi:type="phydsl:FrictionType" name="ice" value="0.1"/>
+    <dataTypes xsi:type="phydsl:FrictionType" name="brick" value="0.4"/>
+    <dataTypes xsi:type="phydsl:FrictionType" name="rough" value="0.7"/>
+    <dataTypes xsi:type="phydsl:FrictionType" name="infinite" value="100.0"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="zero"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="cork" value="1.12"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="rubber" value="1.2"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="stone" value="2.3"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="granite" value="2.6"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="glass" value="2.7"/>
+    <dataTypes xsi:type="phydsl:DensityType" name="lean" value="11.3"/>
+    <dataTypes xsi:type="phydsl:LinearSpeedType" name="fast" x="40.0" y="40.0"/>
+    <dataTypes xsi:type="phydsl:LinearSpeedType" name="slow" x="10.0" y="10.0"/>
+    <dataTypes xsi:type="phydsl:AngularVelocityType" name="fast" value="40.0"/>
+    <dataTypes xsi:type="phydsl:AngularVelocityType" name="slow" value="10.0"/>
+    <dataTypes xsi:type="phydsl:GravityType" name="moon" value="4.0"/>
+    <dataTypes xsi:type="phydsl:GravityType" name="earth" value="9.8"/>
+    <dataTypes xsi:type="phydsl:SizeType" name="tiny" value="0.2"/>
+    <dataTypes xsi:type="phydsl:SizeType" name="teensy" value="0.3"/>
+    <dataTypes xsi:type="phydsl:SizeType" name="short" value="0.4"/>
+    <dataTypes xsi:type="phydsl:SizeType" name="medium" value="0.45"/>
+    <dataTypes xsi:type="phydsl:SizeType" name="small" value="2.0"/>
+    <dataTypes xsi:type="phydsl:SizeType" name="huge" value="8.0"/>
+    <dataTypes xsi:type="phydsl:ForceType" name="up" y="-5.0"/>
+    <dataTypes xsi:type="phydsl:ForceType" name="down" y="5.0"/>
+    <dataTypes xsi:type="phydsl:ForceType" name="right" x="2.0"/>
+    <dataTypes xsi:type="phydsl:ForceType" name="left" x="-2.0"/>
+  </types>
+  <game name="AlienMiner">
+    <actorSection>
+      <actors name="alien">
+        <actorDefinition density="//@types.0/@dataTypes.25" elasticity="//@types.0/@dataTypes.15" friction="//@types.0/@dataTypes.23" imageFile="//@types.0/@dataTypes.0" size="//@types.0/@dataTypes.40" shape="circle" type="main actor"/>
+      </actors>
+      <actors name="meteorite">
+        <actorDefinition density="//@types.0/@dataTypes.28" elasticity="//@types.0/@dataTypes.15" friction="//@types.0/@dataTypes.22" imageFile="//@types.0/@dataTypes.1" size="//@types.0/@dataTypes.41" shape="circle" type="concrete"/>
+      </actors>
+      <actors name="brick">
+        <actorDefinition density="//@types.0/@dataTypes.25" elasticity="//@types.0/@dataTypes.14" friction="//@types.0/@dataTypes.21" imageFile="//@types.0/@dataTypes.3" size="//@types.0/@dataTypes.38" mobility="static" type="concrete"/>
+      </actors>
+      <actors name="emerald">
+        <actorDefinition density="//@types.0/@dataTypes.24" elasticity="//@types.0/@dataTypes.13" friction="//@types.0/@dataTypes.18" imageFile="//@types.0/@dataTypes.2" size="//@types.0/@dataTypes.38" shape="circle" mobility="static" type="concrete"/>
+      </actors>
+      <actors name="diamond">
+        <actorDefinition density="//@types.0/@dataTypes.24" elasticity="//@types.0/@dataTypes.13" friction="//@types.0/@dataTypes.18" imageFile="//@types.0/@dataTypes.11" size="//@types.0/@dataTypes.38" shape="circle" mobility="static"/>
+      </actors>
+      <actors name="star">
+        <actorDefinition density="//@types.0/@dataTypes.24" elasticity="//@types.0/@dataTypes.13" friction="//@types.0/@dataTypes.18" imageFile="//@types.0/@dataTypes.12" size="//@types.0/@dataTypes.39" shape="circle" mobility="static" type="concrete"/>
+      </actors>
+    </actorSection>
+    <layoutSection>
+      <locations element="//@game.0/@actorSection/@actors.0">
+        <coordinate x="1.0" y="1.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="5.0" y="3.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="5.5" y="3.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="6.0" y="3.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="5.0" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="5.5" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="6.0" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="6.5" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="7.0" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="7.5" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="8.0" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="8.5" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="9.0" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="9.5" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="3.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="3.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="4.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="4.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="11.0" y="2.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="11.5" y="2.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="12.0" y="2.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="12.5" y="2.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="13.0" y="2.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="13.0" y="7.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="13.5" y="7.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="14.0" y="7.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="14.5" y="7.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="20.0" y="3.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="20.0" y="3.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="20.0" y="6.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="20.0" y="6.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="28.0" y="3.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="28.5" y="3.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="29.0" y="3.5"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="35.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="35.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="36.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="36.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="37.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="37.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="38.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="38.5" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="39.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="39.5" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="40.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="44.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="44.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="45.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="45.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="46.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="46.5" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="47.0" y="9.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="60.0" y="8.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="60.5" y="8.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="61.0" y="8.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="54.0" y="4.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="54.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="54.0" y="6.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="68.0" y="4.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="68.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.2">
+        <coordinate x="68.0" y="6.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="5.0" y="2.25"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="6.0" y="5.75"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="12.0" y="1.75"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="15.0" y="2.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="30.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="35.0" y="8.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="45.0" y="8.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="50.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="60.5" y="6.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="70.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.3">
+        <coordinate x="70.0" y="6.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.4">
+        <coordinate x="3.0" y="3.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.4">
+        <coordinate x="7.0" y="5.75"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.4">
+        <coordinate x="9.0" y="7.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.4">
+        <coordinate x="20.0" y="5.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.4">
+        <coordinate x="30.0" y="6.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.4">
+        <coordinate x="60.5" y="7.0"/>
+      </locations>
+      <locations element="//@game.0/@actorSection/@actors.5">
+        <coordinate x="70.0" y="8.0"/>
+      </locations>
+    </layoutSection>
+    <environmentSection>
+      <environment gravity="//@types.0/@dataTypes.36" backgroundFile="//@types.0/@dataTypes.4" segments="9" touchscreen="false" camera="continuous"/>
+    </environmentSection>
+    <activitySection>
+      <activities activityID="shower">
+        <activityDefinition linkedElement="//@game.0/@actorSection/@actors.1" frequency="4.0" linearSpeed="//@types.0/@dataTypes.32">
+          <angularVelocity angularSpeed="//@types.0/@dataTypes.34"/>
+          <coordinate x="2.0" y="4.0"/>
+        </activityDefinition>
+      </activities>
+      <activities activityID="middle">
+        <activityDefinition linkedElement="//@game.0/@actorSection/@actors.1" frequency="8.0" linearSpeed="//@types.0/@dataTypes.32">
+          <angularVelocity angularSpeed="//@types.0/@dataTypes.34"/>
+          <coordinate x="40.0" y="4.0"/>
+        </activityDefinition>
+      </activities>
+    </activitySection>
+    <socoringSection>
+      <scoreRules xsi:type="phydsl:CollisionRule" name="pointsUp" elementA="//@game.0/@actorSection/@actors.0" elementB="//@game.0/@actorSection/@actors.3">
+        <effect points="30" end="false" disappears="//@game.0/@actorSection/@actors.3" haptic="false"/>
+      </scoreRules>
+      <scoreRules xsi:type="phydsl:CollisionRule" name="pointsDown" elementA="//@game.0/@actorSection/@actors.0" elementB="//@game.0/@actorSection/@actors.1">
+        <effect points="-20" end="false" disappears="//@game.0/@actorSection/@actors.1" haptic="false"/>
+      </scoreRules>
+      <scoreRules xsi:type="phydsl:TimeRule" name="timeup" time="60">
+        <effect haptic="false"/>
+      </scoreRules>
+      <scoreRules xsi:type="phydsl:TouchRule" name="collectDiamond" elementTouched="//@game.0/@actorSection/@actors.4">
+        <effect points="20" end="false" disappears="//@game.0/@actorSection/@actors.4" sound="//@types.0/@dataTypes.5"/>
+      </scoreRules>
+      <scoreRules xsi:type="phydsl:CollisionRule" name="levelEnd" elementA="//@game.0/@actorSection/@actors.0" elementB="//@game.0/@actorSection/@actors.5">
+        <effect haptic="false"/>
+      </scoreRules>
+    </socoringSection>
+    <controlSection>
+      <controls name="jump" image="//@types.0/@dataTypes.10" moves="//@types.0/@dataTypes.43">
+        <coordinate x="6.75" y="3.6"/>
+      </controls>
+      <controls name="right" image="//@types.0/@dataTypes.8" moves="//@types.0/@dataTypes.45">
+        <coordinate x="1.0" y="3.6"/>
+      </controls>
+      <controls name="left" image="//@types.0/@dataTypes.9" moves="//@types.0/@dataTypes.46">
+        <coordinate x="0.1" y="3.6"/>
+      </controls>
+    </controlSection>
+  </game>
+</phydsl:Model>
