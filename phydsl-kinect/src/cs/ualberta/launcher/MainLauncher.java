@@ -10,7 +10,10 @@ public class MainLauncher {
 		Launcher launcher = new Launcher();
 		
 		
-		launcher.runAcceleo("metamodels/Phydsl.ecore", "Phydsl", "models/AlienMiner.xmi",
-				"transformations/M2T/generate.mtl", "gen/");
+		launcher.runAcceleo("metamodels/Phydsl.ecore",
+				"Phydsl",
+				"models/AlienMiner.xmi",
+				"transformations/M2T/generate.mtl",
+				"gen/");
 	}
 }
