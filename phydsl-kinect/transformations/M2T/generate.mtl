@@ -1757,7 +1757,7 @@ public class KinectGestures
 
                         float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         float actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
-                        float RadTolerance = 0.01f; // % of tolerance (tuneable)
+                        float RadTolerance = 0.15f; // % of tolerance (tuneable)
                         float idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad); //ideal orthogonal projection on X axis
                         float actualRSHx = (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
                         float rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1779,7 +1779,7 @@ public class KinectGestures
 
                         idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x));
-                        RadTolerance = 0.01f;
+                        RadTolerance = 0.15f;
                         idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad);
                         actualRSHx = ((jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad));
                         rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1807,7 +1807,7 @@ public class KinectGestures
 
                         float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         float actualRad = Mathf.PI - Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
-                        float radTolerance = 0.01f; // % of tolerance (tuneable)
+                        float radTolerance = 0.15f; // % of tolerance (tuneable)
                         float idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
                         float actualLSHx = (jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
                         float lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1829,7 +1829,7 @@ public class KinectGestures
 
                         idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         actualRad = Mathf.PI - Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
-                        radTolerance = 0.01f; // % of tolerance (tuneable)
+                        radTolerance = 0.15f; // % of tolerance (tuneable)
                         idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
                         actualLSHx = (jointsPos['['/]leftHandIndex].x - jointsPos['['/]leftShoulderIndex].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
                         lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1857,7 +1857,7 @@ public class KinectGestures
 
                         float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         float actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
-                        float radTolerance = 0.01f; // % of tolerance (tuneable)
+                        float radTolerance = 0.15f; // % of tolerance (tuneable)
                         float idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
                         float actualLSHx = (jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
                         float lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1879,7 +1879,7 @@ public class KinectGestures
 
                         idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         actualRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2((jointsPos['['/]leftHandIndex[']'/].y - jointsPos['['/]leftShoulderIndex[']'/].y), -(jointsPos['['/]leftHandIndex[']'/].x - jointsPos['['/]leftShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
-                        radTolerance = 0.01f; // % of tolerance (tuneable)
+                        radTolerance = 0.15f; // % of tolerance (tuneable)
                         idealLSHx = Mathf.Abs(mainScript.leftShoulderToHandLenght * Mathf.Cos(idealRad)); //ideal orthogonal projection on X axis
                         actualLSHx = (jointsPos['['/]leftHandIndex].x - jointsPos['['/]leftShoulderIndex].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
                         lshxTolerance = idealLSHx <= 0.35f ? 0.15f : idealLSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1906,7 +1906,7 @@ public class KinectGestures
 
                         float idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         float actualRad = Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x)); //Radians of actual vector shoulder/hand
-                        float RadTolerance = 0.01f; // % of tolerance (tuneable)
+                        float RadTolerance = 0.15f; // % of tolerance (tuneable)
                         float idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad); //ideal orthogonal projection on X axis
                         float actualRSHx = (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad); //actual orthogonal projection on X axis
                         float rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
@@ -1928,7 +1928,7 @@ public class KinectGestures
 
                         idealRad = [if(control.moves.y < 0)](2 * Mathf.PI) + [/if]Mathf.Atan2([control.moves.y/]f, [control.moves.x/]f); //Radians of the force vector (from phydsl)
                         actualRad = Mathf.Atan2((jointsPos['['/]rightHandIndex[']'/].y - jointsPos['['/]rightShoulderIndex[']'/].y), (jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x));
-                        RadTolerance = 0.01f;
+                        RadTolerance = 0.15f;
                         idealRSHx = mainScript.rightShoulderToHandLenght * Mathf.Cos(idealRad);
                         actualRSHx = ((jointsPos['['/]rightHandIndex[']'/].x - jointsPos['['/]rightShoulderIndex[']'/].x) * Mathf.Cos(actualRad));
                         rshxTolerance = idealRSHx <= 0.35f ? 0.15f : idealRSHx * 35.0f / 100.0f; // % of tolerance (tuneable);
