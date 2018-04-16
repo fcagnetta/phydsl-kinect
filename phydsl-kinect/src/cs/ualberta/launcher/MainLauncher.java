@@ -11,7 +11,7 @@ public class MainLauncher {
 		
 		launcher.runAcceleo("metamodels/Phydsl.ecore",
 				"Phydsl",
-				"models/AlienMiner.xmi",
+				"models/Alien_Miner.xmi",
 				"transformations/M2T/generate.mtl",
 				"gen/");
 	}
